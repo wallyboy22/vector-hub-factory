@@ -9,8 +9,8 @@ GOOGLE_API_KEY_ALT = os.getenv("GOOGLE_API_KEY_ALT")
 
 EMBEDDING_MODEL = "models/gemini-embedding-001"
 LLM_MODELS = {
-    "flash": "models/gemini-flash-latest",
-    "pro":   "models/gemini-pro-latest"
+    "flash": "gemini-2.0-flash",
+    "pro":   "gemini-1.5-pro"
 }
 
 CHUNK_SIZE    = 700
