@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 
-env_path = os.path.join(os.path.dirname(__file__), "references", "mapbiomas-chat", "refference", ".env")
+env_path = os.path.join(os.path.dirname(__file__), ".env")
 load_dotenv(env_path)
 
 GOOGLE_API_KEY     = os.getenv("GOOGLE_API_KEY")
