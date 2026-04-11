@@ -36,6 +36,27 @@ Seu Hub já estará online em `http://localhost:8000/`. A partir dele, você pod
 
 ---
 
+## 🌐 Hospedagem e Acesso Online
+
+Este repositório foi construído com arquitetura Serverless-Ready.
+
+### 1. Frontend: Vitrine no GitHub Pages
+Seu repositório já possui integração contínua (GitHub Actions) para publicar a interface automaticamente!
+Para ativar e acessar a experiência online:
+1. Vá na página do seu repositório no GitHub.
+2. Acesse **Settings** (Configurações) > **Pages** (no menu lateral esquerdo).
+3. Na seção **Build and deployment**, em *Source*, garanta que esteja selecionado **GitHub Actions**.
+4. Em instantes, o GitHub vai compilar e sua vitrine estará disponível em: `https://<seu-usuario>.github.io/vector-hub-factory/`
+*(Nota: Substitua `<seu-usuario>` por `wallyboy22`)*
+
+### 2. Backend: A Inteligência e os PDFs
+A vitrine no GitHub Pages é estática. Para que os chatbots respondam e os PDFs carreguem corretamente pra quem acessar aquele link público, o motor (`src/api.py`) precisa estar rodando.
+- **Opção A (Gratuita na Nuvem):** Conectar este repositório no serviço [Render](https://render.com). O arquivo `render.yaml` já está configurado. O Render vai gerar uma URL para a sua API (ex: `https://seu-app.onrender.com`).
+- Após ter essa URL, você só precisa ir no arquivo `ui/assets/config.js` e atualizar a variável `API_URL` com ela.
+- E pronto! A Vitrine no seu GitHub Pages consumirá a Inteligência em tempo real pela Nuvem!
+
+---
+
 ## 🔨 Como Funciona a "Fábrica"? (Adicionando seus PDFs)
 
 Não queremos perder horas quebrando cabeças com OCRs complexos e chunks errados. O fluxo "Padrão Prata" da fábrica foi feito para você focar no conteúdo.

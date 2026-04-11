@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MapBiomas Chatbot</title>
+  <link rel="stylesheet" href="/assets/shared.css">
+  <script src="/assets/config.js"></script>
   <style>
     :root {
       --primary-color: #E8503A;
@@ -255,7 +257,7 @@
 <body>
   <header>
     <div class="header-left">
-      <img id="main-logo" src="/logo/raf" alt="MapBiomas Logo">
+      <img id="main-logo" src="/assets/logo.png" alt="MapBiomas Logo">
       <h1 id="header-title">MapBiomas Chat</h1>
     </div>
     <a href="/" class="btn-download">← Voltar</a>
@@ -364,7 +366,7 @@ const questionBanks = {
 
     async function initTabs() {
       try {
-        const res = await fetch('/reports');
+        const res = await fetch(`${window.VHF_CONFIG.API_URL}/reports`);
         reportsCache = await res.json();
         tabBar.innerHTML = '';
         const togglesContainer = document.getElementById('cross-pdf-toggles');
@@ -400,7 +402,7 @@ const questionBanks = {
       const info = reportsCache[currentReport];
       if(info && info.color) {
         document.documentElement.style.setProperty('--primary-color', info.color);
-        document.getElementById('main-logo').src = `/logo/${currentReport}`;
+        document.getElementById('main-logo').src = `${window.VHF_CONFIG.API_URL}/logo/${currentReport}`;
       }
     }
 
@@ -424,9 +426,9 @@ const questionBanks = {
         updateTheme();
         document.getElementById('cross-pdf-toggles').style.display = 'none';
         pdfIframe.style.display = 'flex';
-        pdfIframe.src = `/pdf/${reportKey}?t=${new Date().getTime()}#toolbar=0`;
+        pdfIframe.src = `${window.VHF_CONFIG.API_URL}/pdf/${reportKey}?t=${new Date().getTime()}#toolbar=0`;
         btnDownload.style.display = 'inline-block';
-        btnDownload.href = `/pdf/${reportKey}`;
+        btnDownload.href = `${window.VHF_CONFIG.API_URL}/pdf/${reportKey}`;
       }
       
       chat.innerHTML = '';
@@ -473,9 +475,9 @@ const questionBanks = {
       });
       pdfIframe.style.display = 'flex';
       btnDownload.style.display = 'inline-block';
-      btnDownload.href = `/pdf/${docKey}`;
+      btnDownload.href = `${window.VHF_CONFIG.API_URL}/pdf/${docKey}`;
       const hash = page ? `#page=${page}&toolbar=0` : `#toolbar=0`;
-      pdfIframe.src = `/pdf/${docKey}?t=${Date.now()}${hash}`;
+      pdfIframe.src = `${window.VHF_CONFIG.API_URL}/pdf/${docKey}?t=${Date.now()}${hash}`;
     }
 
     initTabs();
@@ -486,7 +488,7 @@ const questionBanks = {
     });
 
     function goToPage(page) {
-      pdfIframe.src = `/pdf/${currentReport}?t=${new Date().getTime()}#page=${page}&toolbar=0&navpanes=0&scrollbar=1`;
+      pdfIframe.src = `${window.VHF_CONFIG.API_URL}/pdf/${currentReport}?t=${new Date().getTime()}#page=${page}&toolbar=0&navpanes=0&scrollbar=1`;
       highlightActiveButtons(page);
     }
 
@@ -572,14 +574,15 @@ const questionBanks = {
 
       try {
         let res;
+        const apiUrl = window.VHF_CONFIG.API_URL;
         if (currentReport === 'cross') {
-          res = await fetch('/ask_cross', {
+          res = await fetch(`${apiUrl}/ask_cross`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ question: q, model: currentModel })
           });
         } else {
-          res = await fetch('/ask', {
+          res = await fetch(`${apiUrl}/ask`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ question: q, report: currentReport, model: currentModel })

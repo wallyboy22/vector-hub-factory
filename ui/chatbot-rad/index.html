@@ -252,7 +252,7 @@
     <div class="tab-bar">
       <div class="tab active">🌳 RAD</div>
     </div>
-    <a id="btn-download" href="/pdf/rad" download class="btn-download">⬇️ PDF Completo</a>
+    <a id="btn-download" href="#" download class="btn-download">⬇️ PDF Completo</a>
   </div>
   
   <div id="main-container">
@@ -295,7 +295,7 @@
     </div>
 
     <div id="pdf-container">
-      <iframe id="pdf-viewer" src="/pdf/rad#toolbar=0"></iframe>
+      <iframe id="pdf-viewer" src=""></iframe>
     </div>
   </div>
 
@@ -313,7 +313,13 @@
     let currentPage = 1;
     let isLoading = false;
 
+    // URLs da API (ajuste conforme seu deploy)
     const API_URL = window.VHF_CONFIG?.API_URL || 'http://localhost:8000';
+    const WORKER_URL = window.VHF_CONFIG?.WORKER_URL || '';
+
+    // Inicializar URLs baseadas no API_URL
+    pdfIframe.src = `${API_URL}/pdf/rad#toolbar=0`;
+    document.getElementById('btn-download').href = `${API_URL}/pdf/rad`;
 
     const questionBank = [
       { label: "🇧🇷 Total Brasil", q: "Qual a área total desmatada no Brasil em 2023?" },
