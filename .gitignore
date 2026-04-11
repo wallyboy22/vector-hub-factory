@@ -13,8 +13,8 @@ refference/.env
 references/
 refference/
 
-# Project Data (IA-Ready files are large, keep them local/releases)
-docs/*/data/
+# Project Data (PDFs are committed; only raw/temp data excluded)
+# docs/*/data/  <-- descomentado para incluir índices no deploy
 data/
 
 # OS
