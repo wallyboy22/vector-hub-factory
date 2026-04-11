@@ -2,17 +2,11 @@ import numpy as np
 import time
 import os
 from google import genai
-from config import TOP_K, GOOGLE_API_KEY, GOOGLE_API_KEY_ALT, EMBEDDING_MODEL, DOCUMENTS, LLM_MODELS
-from src.vectorstore import load_index
+from config import TOP_K, GOOGLE_API_KEY, GOOGLE_API_KEY_ALT, EMBEDDING_MODEL, DOCUMENTS, LLM_MODELS, ALL_API_KEYS
 
-# Gerenciador de Clientes (Chave Principal e Reserva)
-_clients = [genai.Client(api_key=GOOGLE_API_KEY)]
-# Só adiciona a segunda chave se ela for real e diferente da padrão
-if GOOGLE_API_KEY_ALT and len(GOOGLE_API_KEY_ALT) > 20 and "SEU" not in GOOGLE_API_KEY_ALT:
-    _clients.append(genai.Client(api_key=GOOGLE_API_KEY_ALT))
-    print(f"  [QA] Sistema de Chave Dupla Ativado! (2 chaves prontas)")
-else:
-    print(f"  [QA] Operando com Chave Unica (1 chave pronta)")
+# Gerenciador de Clientes — usa TODAS as chaves disponíveis automaticamente
+_clients = [genai.Client(api_key=k) for k in ALL_API_KEYS]
+print(f"  [QA] {len(_clients)} chave(s) de API carregada(s) e prontas para fallback!")
 
 # Pré-carrega todos os índices disponíveis
 _engines = {}

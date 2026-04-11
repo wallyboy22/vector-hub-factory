@@ -9,3 +9,5 @@ services:
         sync: false
       - key: GOOGLE_API_KEY_ALT
         sync: false
+      - key: GOOGLE_API_KEY_ALT2
+        sync: false
