@@ -2,6 +2,10 @@
 
 Uma plataforma modular de Ciência Aberta para transformar documentos científicos estáticos (como relatórios vitais originais em `.pdf`) em **Dados Prontos para IA** (AI-Ready Data).
 
+---
+> **Nota de Origem:** Este projeto nasceu e evoluiu como um experimento e caso de teste no âmbito do **IPAM** e da rede **MapBiomas**. O objetivo inicial foi criar uma solução ágil e de baixo custo para tornar grandes relatórios e documentos científicos (como o Relatório Anual do Fogo e Desmatamento) interativos e acessíveis à comunidade pública utilizando Inteligência Artificial (RAG). Posteriormente, sua arquitetura foi generalizada para a comunidade de Código Aberto.
+---
+
 Seja você um pesquisador, um analista de dados ou um desenvolvedor focado em RAG, o **Vector Hub Factory** automatiza a extração, o processamento semântico (chunking) e a vetorização (embeddings) dos seus documentos, ao mesmo tempo que levanta interfaces elegantes para acesso imediato.
 
 ---
@@ -40,20 +44,27 @@ Seu Hub já estará online em `http://localhost:8000/`. A partir dele, você pod
 
 Este repositório foi construído com arquitetura Serverless-Ready.
 
-### 1. Frontend: Vitrine no GitHub Pages
-Seu repositório já possui integração contínua (GitHub Actions) para publicar a interface automaticamente!
-Para ativar e acessar a experiência online:
-1. Vá na página do seu repositório no GitHub.
-2. Acesse **Settings** (Configurações) > **Pages** (no menu lateral esquerdo).
-3. Na seção **Build and deployment**, em *Source*, garanta que esteja selecionado **GitHub Actions**.
-4. Em instantes, o GitHub vai compilar e sua vitrine estará disponível em: `https://<seu-usuario>.github.io/vector-hub-factory/`
-*(Nota: Substitua `<seu-usuario>` por `wallyboy22`)*
+### 1. Criar a sua API no Render (Backend)
+Como a aplicação utiliza scripts Python robustos para inteligência artificial, precisamos de um pequeno servidor rodando gratuitamente na nuvem.
+1. Crie uma conta no [Render](https://render.com).
+2. Clique em **"New +"** e depois em **"Web Service"**.
+3. Conecte sua conta do GitHub e selecione o seu fork ou clone do repositório `vector-hub-factory`.
+4. Mantenha as configurações sugeridas, ou use caso ele peça manualmente:
+   - **Language:** `Python 3`
+   - **Build Command:** `pip install -r requirements.txt`
+   - **Start Command:** `uvicorn src.api:app --host 0.0.0.0 --port $PORT`
+5. Em **Environment Variables**, adicione sua chave de inteligência artificial provida pelo Google (ex: `GOOGLE_API_KEY`).
+6. Clique em **Create Web Service**. Ele vai gerar o link do seu Backend (ex: `https://meu-servidor.onrender.com`). Guarde-o.
 
-### 2. Backend: A Inteligência e os PDFs
-A vitrine no GitHub Pages é estática. Para que os chatbots respondam e os PDFs carreguem corretamente pra quem acessar aquele link público, o motor (`src/api.py`) precisa estar rodando.
-- **Opção A (Gratuita na Nuvem):** Conectar este repositório no serviço [Render](https://render.com). O arquivo `render.yaml` já está configurado. O Render vai gerar uma URL para a sua API (ex: `https://seu-app.onrender.com`).
-- Após ter essa URL, você só precisa ir no arquivo `ui/assets/config.js` e atualizar a variável `API_URL` com ela.
-- E pronto! A Vitrine no seu GitHub Pages consumirá a Inteligência em tempo real pela Nuvem!
+### 2. Configurar Interfaces e Hospedar o Hub (GitHub Pages)
+Agora que sua API está funcional, basta dizermos para a Vitrine consumir as informações através dela e ligar as páginas gratuitas!
+1. Vá no arquivo `ui/assets/config.js` no seu repositório.
+2. Altere o valor de `API_URL` e cole com o seu link que o Render acabou de te fornecer. (Faça o push/commit dessa alteração).
+3. Agora no GitHub, acesse a página do seu repositório > **Settings** > **Pages** (no menu lateral de opções).
+4. Na seção **Build and deployment**, no campo *Source*, escolha a opção **GitHub Actions**.
+5. O GitHub Actions vai compilar sua Vitrine. Em instantes, seu projeto será ativado no link padrão do GitHub Pages (ex: `https://<seu-usuario>.github.io/vector-hub-factory/`).
+
+Pronto! Acesse o link que o GitHub Gerou para você. Toda vez que você mandar arquivos novos pro GitHub, ele publicará automaticamente as atualizações da interface visual e a API responderá com seus Chatbots e Arquivos.
 
 ---
 
