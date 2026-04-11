@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Busca Transversal — Vector Hub Factory</title>
+  <link rel="stylesheet" href="/assets/shared.css">
+  <script src="/assets/config.js"></script>
+  <style>
+    :root {
+      --primary-color: #00b4d8;
+    }
+    #header-title { color: #00b4d8; }
+    .btn-pdf-toggle {
+      background: transparent; color: #555;
+      border: 1px solid #eee; border-radius: 4px;
+      padding: 3px 6px; font-size: 0.65rem; font-weight: 600;
+      cursor: pointer; transition: 0.2s;
+    }
+    .btn-pdf-toggle.active { background: #333; color: white; border-color: #333; }
+    .btn-pdf-toggle:hover:not(.active) { background: #eee; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <img id="main-logo" src="/logo/raf" alt="Logo">
+      <h1 id="header-title">Busca Transversal — Vector Hub Factory</h1>
+    </div>
+    <a href="/" class="btn-download">← Voltar</a>
+  </header>
+
+  <div class="tab-bar-container">
+    <div></div>
+    <div class="pdf-controls" id="pdf-controls" style="display: flex; gap: 8px; align-items: center; justify-content: flex-end;">
+      <div id="cross-pdf-toggles" style="display: flex; gap: 6px;">
+        <button class="btn-pdf-toggle active" id="toggle-pdf-raf" onclick="showCrossPdf('raf')">RAF</button>
+        <button class="btn-pdf-toggle" id="toggle-pdf-rad" onclick="showCrossPdf('rad')">RAD</button>
+      </div>
+      <a id="btn-download" href="/pdf/raf" download class="btn-download" title="Baixar PDF">⬇️ PDF</a>
+    </div>
+  </div>
+  
+  <div id="main-container">
+    <div id="chat-container">
+      <div id="chat">
+        <div class="msg-wrapper bot">
+          <div class="msg bot">Olá! Faça uma pergunta que envolva múltiplos relatórios.</div>
+        </div>
+      </div>
+
+      <div class="disclaimer-bar">
+        <div class="disclaimer-text">
+          ⚠️ <b>IA Experimental</b>: Verifique fontes oficiais no PDF.
+        </div>
+        <div class="disclaimer-tools">
+          <select id="model-selector" onchange="switchModel(this.value)">
+            <option value="flash">⚡ Flash</option>
+            <option value="pro">🧠 Pro</option>
+          </select>
+          <button class="btn-clear" onclick="clearChat()">
+            <span>🗑️</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="input-area">
+        <div class="input-row">
+          <textarea id="question" placeholder="Busca em todos os relatórios..." rows="1"></textarea>
+          <button id="send-btn" onclick="sendQuestion()">➔</button>
+        </div>
+      </div>
+
+      <div class="suggestions-wrapper" id="suggestions-wrapper">
+        <div class="suggestions-header" onclick="toggleSuggestions()">
+          <span>Sugestões de Perguntas</span>
+          <div class="toggle-icon">▾</div>
+        </div>
+        <div id="suggestions-container"></div>
+      </div>
+    </div>
+
+    <div id="pdf-container">
+      <iframe id="pdf-viewer" src="/pdf/raf#toolbar=0"></iframe>
+    </div>
+  </div>
+
+  <script>
+    const chat = document.getElementById('chat');
+    const input = document.getElementById('question');
+    const btn = document.getElementById('send-btn');
+    const pdfIframe = document.getElementById('pdf-viewer');
+    const suggestions = document.getElementById('suggestions-container');
+    const suggestionsWrapper = document.getElementById('suggestions-wrapper');
+
+    let currentReport = "raf";
+    let currentModel = "flash";
+    let lastQuestion = "";
+
+    function showCrossPdf(docKey, page = null) {
+      currentReport = docKey;
+      document.querySelectorAll('.btn-pdf-toggle').forEach(el => {
+        el.classList.toggle('active', el.id === `toggle-pdf-${docKey}`);
+      });
+      document.getElementById('btn-download').href = `${window.VHF_CONFIG.API_URL}/pdf/${docKey}`;
+      const hash = page ? `#page=${page}&toolbar=0` : `#toolbar=0`;
+      pdfIframe.src = `${window.VHF_CONFIG.API_URL}/pdf/${docKey}?t=${Date.now()}${hash}`;
+      if (page) highlightActiveButtons(page);
+    }
+
+    const crossQuestions = [
+      { label: "🔥🌳 Fogo vs Desmatamento", q: "Como o fogo se relaciona com o desmatamento no Brasil?" },
+      { label: "🌿 Biomas", q: "Quais biomas sofreram mais com fogo E desmatamento em 2024?" },
+      { label: "🛡️ Proteção", q: "Terras indígenas são mais protegidas do fogo ou do desmatamento?" }
+    ];
+
+    function renderSuggestions() {
+      suggestions.innerHTML = '';
+      crossQuestions.forEach(item => {
+        const chip = document.createElement('div');
+        chip.className = 'suggestion-chip';
+        chip.textContent = item.label;
+        chip.title = item.q;
+        chip.onclick = () => askSuggestion(item.q);
+        suggestions.appendChild(chip);
+      });
+    }
+
+    function toggleSuggestions() { suggestionsWrapper.classList.toggle('minimized'); }
+    function openSuggestions() { suggestionsWrapper.classList.remove('minimized'); renderSuggestions(); }
+    function minimizeSuggestions() { suggestionsWrapper.classList.add('minimized'); }
+
+    renderSuggestions();
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendQuestion(); }
+    });
+
+    function goToPage(page, doc) {
+      const docKey = doc || currentReport;
+      showCrossPdf(docKey, page);
+    }
+
+    function highlightActiveButtons(pageNo) {
+      document.querySelectorAll('.page-link').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.page-link').forEach(el => {
+        if (el.textContent.trim() == pageNo) el.classList.add('active');
+      });
+    }
+
+    function clearChat() {
+      chat.innerHTML = '';
+      addMsg("Chat reiniciado.", "bot");
+      openSuggestions();
+    }
+
+    function switchModel(val) { currentModel = val; }
+
+    function addMsg(text, role, sources) {
+      const wrapper = document.createElement('div');
+      wrapper.className = `msg-wrapper ${role}`;
+      const div = document.createElement('div');
+      div.className = `msg ${role}`;
+      div.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+      
+      if (sources && sources.length) {
+        const srcDiv = document.createElement('div');
+        srcDiv.className = 'sources';
+        srcDiv.textContent = 'Págs: ';
+        const uniqueSources = [...new Set(sources.map(s => `${s.doc_short || s.doc || 'RAF'} p.${s.page}`))];
+        uniqueSources.forEach(s => {
+          const span = document.createElement('span');
+          span.className = 'page-link';
+          span.textContent = s;
+          const parts = s.split(' p.');
+          if (parts.length === 2) {
+            span.onclick = () => goToPage(parts[1], parts[0].toLowerCase());
+          }
+          srcDiv.appendChild(span);
+        });
+        div.appendChild(srcDiv);
+      }
+      
+      wrapper.appendChild(div);
+      chat.appendChild(wrapper);
+      chat.scrollTop = chat.scrollHeight;
+      if (role === 'user') minimizeSuggestions();
+    }
+
+    function askSuggestion(q) { input.value = q; sendQuestion(); }
+
+    async function sendQuestion() {
+      const q = input.value.trim();
+      if (!q) return;
+      lastQuestion = q;
+      input.value = '';
+      btn.disabled = true;
+      addMsg(q, 'user');
+
+      try {
+        const apiUrl = window.VHF_CONFIG.API_URL;
+        const res = await fetch(`${apiUrl}/ask_cross`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ question: q, model: currentModel })
+        });
+        const data = await res.json();
+        addMsg(data.answer, 'bot', data.sources);
+        if (data.sources && data.sources.length) {
+          const first = data.sources[0];
+          const docKey = first.doc_key || first.doc || 'raf';
+          const pageNum = first.page || null;
+          showCrossPdf(docKey, pageNum);
+        }
+      } catch(err) {
+        addMsg('Erro na conexão.', 'bot');
+      } finally {
+        btn.disabled = false;
+        input.focus();
+      }
+    }
+  </script>
+</body>
+</html>

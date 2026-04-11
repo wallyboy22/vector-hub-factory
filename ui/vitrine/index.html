@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vector Hub Factory</title>
+  <link rel="stylesheet" href="/assets/shared.css">
+  <script src="/assets/config.js"></script>
+  <style>
+    :root {
+      --primary-color: #00b4d8;
+      --bg-dark: #1a1a2e;
+      --bg-card: #2a2a3e;
+    }
+    body {
+      background: var(--bg-dark);
+      color: #e0e0e0;
+      height: auto;
+      min-height: 100vh;
+      display: block;
+      overflow-y: auto;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+    .hub-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 48px; padding: 0 24px; }
+    .hub-header-left { display: flex; align-items: center; gap: 16px; }
+    .hub-logo { width: 48px; height: 48px; object-fit: contain; }
+    .hub-header h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0; }
+    .hub-header p { font-size: 1.1rem; color: #aaa; margin-bottom: 0; }
+    .btn-hub {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #333;
+      color: #fff;
+      text-decoration: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: 0.2s;
+    }
+    .btn-hub:hover { background: var(--primary-color); }
+    .docs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; margin-bottom: 48px; }
+    .doc-card {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 24px;
+      border-top: 4px solid #E8503A;
+    }
+    .doc-card.rad { border-top-color: #812411; }
+    .card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .card-emoji { font-size: 1.5rem; }
+    .card-header h2 { font-size: 1.2rem; flex: 1; }
+    .card-badge { background: #444; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; }
+    .card-downloads h4 { font-size: 0.9rem; color: #00b4d8; margin: 16px 0 12px; }
+    .btn-download {
+      display: inline-block;
+      background: transparent;
+      color: white;
+      text-decoration: none;
+      padding: 8px 16px;
+      border: 1px solid #555;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      transition: 0.2s;
+    }
+    .btn-download:hover { background: var(--primary-color); border-color: var(--primary-color); }
+    .btn-download-small {
+      display: inline-block;
+      background: #333;
+      color: #ccc;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      text-decoration: none;
+      margin-right: 8px;
+    }
+    .btn-download-small:hover { color: white; }
+    .card-meta { font-size: 0.75rem; color: #888; margin-top: 12px; }
+    .btn-chatbot {
+      display: block;
+      background: var(--primary-color);
+      color: white;
+      text-align: center;
+      text-decoration: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: 600;
+      margin-top: 20px;
+    }
+    .section-title { font-size: 1.1rem; color: #00b4d8; margin: 32px 0 16px; }
+    .code-block {
+      background: #0d0d1a;
+      border-radius: 8px;
+      padding: 16px;
+      font-family: monospace;
+      font-size: 0.8rem;
+      color: #ccc;
+      overflow-x: auto;
+    }
+    .footer { text-align: center; margin-top: 48px; padding-top: 24px; border-top: 1px solid #333; color: #666; font-size: 0.85rem; }
+    .footer a { color: #00b4d8; }
+    @media (max-width: 600px) {
+      .docs-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="hub-header">
+      <div class="hub-header-left">
+        <img src="/assets/logo.png" alt="Logo" class="hub-logo" onerror="this.style.display='none'">
+        <div>
+          <h1>Vector Hub Factory</h1>
+          <p>Documentos Científicos Prontos para IA</p>
+        </div>
+      </div>
+      <a href="http://localhost:8501" class="btn-hub" id="btn-hub">← Hub de Apps</a>
+    </div>
+
+    <div class="docs-grid">
+      <!-- Card RAF -->
+      <div class="doc-card">
+        <div class="card-header">
+          <span class="card-emoji">🔥</span>
+          <h2>Relatório Anual do Fogo</h2>
+          <span class="card-badge">RAF 2024</span>
+        </div>
+        <div class="card-downloads">
+          <a href="#" class="btn-download" id="btn-pdf-raf">⬇️ PDF Completo</a>
+          <h4>🤖 Dados IA-Ready — Gemini</h4>
+          <a href="#" class="btn-download-small" id="btn-index-raf">⬇️ faiss.index</a>
+          <a href="#" class="btn-download-small" id="btn-meta-raf">⬇️ meta.json</a>
+          <p class="card-meta">768 dimensões · Gratuito · Google AI Studio</p>
+        </div>
+        <a href="#" class="btn-chatbot" id="btn-chatbot-raf">💬 Abrir Chatbot</a>
+      </div>
+
+      <!-- Card RAD -->
+      <div class="doc-card rad">
+        <div class="card-header">
+          <span class="card-emoji">🌳</span>
+          <h2>Relatório Anual do Desmatamento</h2>
+          <span class="card-badge">RAD 2024</span>
+        </div>
+        <div class="card-downloads">
+          <a href="#" class="btn-download" id="btn-pdf-rad">⬇️ PDF Completo</a>
+          <h4>🤖 Dados IA-Ready — Gemini</h4>
+          <a href="#" class="btn-download-small" id="btn-index-rad">⬇️ faiss.index</a>
+          <a href="#" class="btn-download-small" id="btn-meta-rad">⬇️ meta.json</a>
+          <p class="card-meta">768 dimensões · Gratuito · Google AI Studio</p>
+        </div>
+        <a href="#" class="btn-chatbot" id="btn-chatbot-rad">💬 Abrir Chatbot</a>
+      </div>
+    </div>
+
+    <h3 class="section-title">Aplicativos</h3>
+    <div class="docs-grid">
+      <div class="doc-card" style="border-top-color: #00b4d8;">
+        <div class="card-header">
+          <span class="card-emoji">📊</span>
+          <h2>Multi-Relatório</h2>
+        </div>
+        <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 16px;">Alterne entre relatórios sem cruzar dados.</p>
+        <a href="/multi/" class="btn-chatbot" id="btn-multi">💬 Abrir Multi-Relatório</a>
+      </div>
+      <div class="doc-card" style="border-top-color: #00b4d8;">
+        <div class="card-header">
+          <span class="card-emoji">🔍</span>
+          <h2>Busca Transversal</h2>
+        </div>
+        <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 16px;">Busque em todos os índices simultaneamente.</p>
+        <a href="/cross/" class="btn-chatbot" id="btn-cross">💬 Abrir Busca Transversal</a>
+      </div>
+    </div>
+
+    <h3 class="section-title">Como Usar os Dados</h3>
+    <pre><code>python factory/03_query_index.py \
+  --index docs/raf/data/embeddings/gemini-embedding-001/faiss.index \
+  --meta  docs/raf/data/embeddings/gemini-embedding-001/meta.json \
+  --text  "área queimada no cerrado" \
+  --top-k 5</code></pre>
+
+    <div class="footer">
+      🏭 <a href="#">Vector Hub Factory</a> —Documentos Científicos Prontos para IA
+    </div>
+  </div>
+
+  <script>
+    // Atualizar links do chatbot usando config.js
+    document.addEventListener('DOMContentLoaded', () => {
+      const apiUrl = window.VHF_CONFIG.API_URL;
+      
+      // Para GitHub Pages, usamos relativa paths (assumindo que todos os HTMLs estão no mesmo repo)
+      // Os links abaixo funcionam tanto localmente quanto no GitHub Pages
+      
+      // Chatbots abrem os apps HTML
+      const chatbotUrls = {
+        'btn-chatbot-raf': '/chatbot-raf/',
+        'btn-chatbot-rad': '/chatbot-rad/'
+      };
+      document.querySelectorAll('.btn-chatbot').forEach(btn => {
+        const url = chatbotUrls[btn.id];
+        if (url) {
+          btn.href = url;
+        }
+      });
+      
+      // Links para Multi e Cross
+      const otherApps = {
+        'btn-multi': '/multi/',
+        'btn-cross': '/cross/'
+      };
+      
+      // PDFs (requer servidor ou proxy)
+      const pdfMap = {
+        'btn-pdf-raf': 'raf',
+        'btn-pdf-rad': 'rad'
+      };
+      document.querySelectorAll('.btn-download').forEach(btn => {
+        const doc = pdfMap[btn.id];
+        if (doc && apiUrl) {
+          btn.href = apiUrl + '/pdf/' + doc;
+        }
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+name = "vector-hub-factory"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Variáveis de ambiente
+[vars]
+ENVIRONMENT = "production"
+
+# Secrets (configure via: wrangler secret put GOOGLE_API_KEY)
+# ou use .dev.vars para desenvolvimento local

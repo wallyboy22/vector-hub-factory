@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# Environment
+.env
+refference/.env
+
+# Local Archives (Not to be uploaded)
+references/
+refference/
+
+# Project Data (IA-Ready files are large, keep them local/releases)
+docs/*/data/
+data/
+
+# OS
+.DS_Store
+Thumbs.db
