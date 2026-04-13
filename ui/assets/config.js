@@ -2,8 +2,8 @@
 // Edite apenas este arquivo para apontar para produção.
 window.VHF_CONFIG = {
   // Servidor de API (backend para PDFs)
-  API_URL: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:8000'
+  API_URL: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? window.location.origin
     : 'https://vector-hub-factory.onrender.com',
     
   // Cloudflare Worker (proxy seguro para Gemini API)

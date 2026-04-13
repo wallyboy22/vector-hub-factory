@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RAF — Vector Hub Factory</title>
+  <link rel="stylesheet" href="/assets/shared.css?v=2.2">
+  <script src="/assets/config.js?v=2.2"></script>
+  <script src="/assets/tab-manager.js?v=2.2"></script>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <style>
+    :root { --primary-color: #E8503A; }
+    
+    .badge-info { font-size: 0.7rem; color: #94a3b8; margin-top: 4px; line-height: 1.4; display: block; }
+
+    /* New drawer logic */
+    .drawer-content { display: none; padding: 12px 20px 16px; background: #fafafa; border-top: 1px solid #e2e8f0; flex-wrap: wrap; gap: 6px; }
+    .drawer.open .drawer-content { display: flex; }
+    
+    /* Accessibility */
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+  </style>
+</head>
+<body class="app-shell">
+  <header>
+    <div class="header-left">
+      <span style="font-size: 1.4rem;">🔥</span>
+      <h1>Relatório Anual do Fogo <span style="font-weight:400; color:#94a3b8">(RAF 2024)</span></h1>
+    </div>
+    <div class="header-right">
+       <a href="/pdf/raf" class="btn-download">⬇️ PDF Completo</a>
+    </div>
+  </header>
+
+  <div id="main-workspace">
+      <div id="chat-panel">
+        <div class="sidebar-toggle" onclick="toggleSidebar()" title="Recolher/Expandir Chat">◂</div>
+        <div class="sidebar-toggle expand-btn" onclick="toggleWide()" title="Aumentar Foco no Chat">↔</div>
+        <div class="vertical-label">CHAT ASSISTANT</div>
+
+        <div id="chat-messages">
+          <div class="msg bot">Olá! Como posso ajudar com sua pesquisa no Relatório Anual do Fogo 2024?</div>
+        </div>
+
+        <div style="font-size: 0.65rem; color: #94a3b8; padding: 6px 20px; text-align: center; border-top: 1px solid var(--border-color); background: #fafafa; display: flex; justify-content: center; align-items: center; gap: 8px;">
+          <span>⚠️ IA Experimental: Verifique sempre as fontes no PDF original.</span>
+          <span style="cursor: pointer; opacity: 0.6; font-size: 0.8rem; transition: 0.2s;" onclick="clearChat()" title="Limpar Conversa" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">🗑️</span>
+        </div>
+
+        <div id="input-area">
+          <div class="input-row">
+            <label for="question" class="sr-only">Digite sua pergunta</label>
+            <textarea id="question" name="question" rows="1" placeholder="Sua dúvida sobre o fogo..."></textarea>
+            <button class="btn-send" onclick="send()" aria-label="Enviar mensagem">➔</button>
+          </div>
+        </div>
+
+        <div class="chat-footer">
+          <span>Pronto para pesquisar.</span>
+        </div>
+
+        <!-- Gavetas Order: Perguntas -> Busca -> Resposta -->
+        <div class="suggestions-drawer drawer" id="sug-drawer">
+          <div class="drawer-header" onclick="toggleDrawer('sug-drawer')">
+            <span>Explore Sugestões</span>
+            <div class="icon">▾</div>
+          </div>
+          <div class="drawer-content">
+            <div class="drawer-desc">Dúvidas comuns identificadas neste relatório:</div>
+            <div id="suggestions" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+          </div>
+        </div>
+
+        <div class="drawer" id="emb-drawer">
+          <div class="drawer-header" onclick="toggleDrawer('emb-drawer')">
+            <span>🧠 Motores de Busca</span>
+            <div class="icon">▾</div>
+          </div>
+          <div class="drawer-content">
+            <div class="drawer-desc">Tecnologia (Embeddings) para encontrar os trechos mais relevantes:</div>
+            <div id="emb-options" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+          </div>
+        </div>
+
+        <div class="drawer" id="llm-drawer">
+          <div class="drawer-header" onclick="toggleDrawer('llm-drawer')">
+            <span>💬 Motores de Resposta</span>
+            <div class="icon">▾</div>
+          </div>
+          <div class="drawer-content">
+            <div class="drawer-desc">Inteligência Artificial que interpretará e responderá sua dúvida:</div>
+            <div id="llm-options" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+          </div>
+        </div>
+
+      </div> <!-- fim chat-panel -->
+    <div id="canvas-container"></div>
+  </div>
+
+  <script>
+    const API_URL = window.VHF_CONFIG?.API_URL || '';
+    const APP_ID = 'raf';
+    
+    // Carregar config do app (emoji, perguntas)
+    async function loadAppConfig() {
+      try {
+        const res = await fetch(API_URL + '/factory/apps');
+        const apps = await res.json();
+        const app = apps[APP_ID];
+        if (app) {
+          document.querySelector('header .header-left span').textContent = app.emoji;
+          document.querySelector('header h1').innerHTML = `${app.name} <span style="font-weight:400; color:#94a3b8">(2024)</span>`;
+          
+          // Perguntas sugeridas (embaralhar)
+          if (app.questions && app.questions.length) {
+            const shuffled = [...app.questions].sort(() => Math.random() - 0.5);
+            window._appQuestions = shuffled;
+          }
+        }
+      } catch(e) { console.error('Erro carregando config:', e); }
+    }
+    loadAppConfig();
+    
+    // UI Setup
+    const tabManager = new TabManager('canvas-container');
+    
+    // Verificar ?tab= na URL para abrir aba correta
+    const params = new URLSearchParams(window.location.search);
+    const initialTab = params.get('tab') || 'pdf';
+    
+    tabManager.addTab('pdf', 'PDF', false, 
+      `<iframe id="pdf-viewer" style="width:100%; height:100%; border:none;" src="${API_URL}/pdf/raf#toolbar=0"></iframe>`, 
+      '📄'
+    );
+    tabManager.addTab('brain', 'Brain', false,
+      `<div id="brain-container" style="width:100%; height:100%; display:flex; flex-direction:column;">
+        <div style="padding:12px; display:flex; gap:8px; align-items:center; background:#fafafa; border-bottom:1px solid #e2e8f0;">
+          <label for="brain-provider" style="font-size:0.8rem;">Provider:</label>
+          <select id="brain-provider" name="brain-provider" style="padding:6px; border:1px solid #ddd; border-radius:4px;">
+            <option value="gemini">Gemini</option>
+            <option value="jina">Jina</option>
+          </select>
+          <label for="brain-doc" style="font-size:0.8rem;">Doc:</label>
+          <select id="brain-doc" name="brain-doc" style="padding:6px; border:1px solid #ddd; border-radius:4px;">
+            <option value="raf">RAF</option>
+            <option value="rad">RAD</option>
+            <option value="all">Todos</option>
+          </select>
+          <label for="brain-view-mode" style="font-size:0.8rem;">Visualização:</label>
+          <select id="brain-view-mode" name="brain-view-mode" style="padding:6px; border:1px solid #ddd; border-radius:4px;">
+            <option value="3d">3D</option>
+            <option value="2d">2D</option>
+          </select>
+          <button onclick="loadBrain()" style="padding:6px 12px; background:var(--primary-color); color:white; border:none; border-radius:4px; cursor:pointer;">🔄 Carregar</button>
+          <span id="brain-status" style="font-size:0.75rem; color:#64748b;"></span>
+        </div>
+        <div id="brain-plot" style="flex:1;"></div>
+      </div>`,
+      '🧠'
+    );
+    
+    window.loadBrain = async function() {
+      const provider = document.getElementById('brain-provider').value;
+      const doc_id = document.getElementById('brain-doc').value;
+      const status = document.getElementById('brain-status');
+      status.textContent = 'Carregando...';
+      
+      try {
+        let url;
+        if (doc_id === 'all') {
+          url = API_URL + '/brain/combined?provider=' + provider;
+        } else {
+          url = API_URL + '/brain/' + doc_id + '?provider=' + provider;
+        }
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Cérebro não encontrado');
+        const brain = await res.json();
+        
+        const neurons = brain.neurons || [];
+        const x = [], y = [], z = [], colors = [], sizes = [], texts = [];
+        
+        // Primeiro popular coordenadas
+        neurons.forEach(n => {
+          const c = n.coords_3d || [0, 0, 0];
+          x.push(c[0]);
+          y.push(c[1] || 0);
+          z.push(c[2] || 0);
+        });
+        
+        // Calcular conexões (k-vizinhos mais próximos)
+        const K = 3; // conectar aos 3 mais próximos
+        const connectionCounts = neurons.map(() => 0);
+        
+        for (let i = 0; i < neurons.length; i++) {
+          // Encontrar distâncias para todos os outros pontos
+          const dists = [];
+          for (let j = 0; j < neurons.length; j++) {
+            if (i !== j) {
+              const d = Math.sqrt(
+                Math.pow(x[i] - x[j], 2) + 
+                Math.pow(y[i] - y[j], 2) + 
+                Math.pow(z[i] - z[j], 2)
+              );
+              dists.push({idx: j, dist: d});
+            }
+          }
+          // Ordenar por distância e conectar aos K mais próximos
+          dists.sort((a, b) => a.dist - b.dist);
+          for (let m = 0; m < Math.min(K, dists.length); m++) {
+            connectionCounts[i]++;
+            connectionCounts[dists[m].idx]++; // conexão bidirecional
+          }
+        }
+        const maxConn = Math.max(...connectionCounts) || 1;
+        
+        // Para modo combinado: cores por documento
+        const isCombined = doc_id === 'all';
+        const docColors = { raf: 0, rad: 0.5, rads: 0.7 };
+        const docColorsArr = []; // Cores por documento para modo combinado
+        
+        neurons.forEach((n, idx) => {
+          const c = n.coords_3d || [0, 0, 0];
+          x.push(c[0]);
+          y.push(c[1] || 0);
+          z.push(c[2] || 0);
+          
+          // Tamanho baseado em conexões (degree centrality)
+          const connRatio = connectionCounts[idx] / maxConn;
+          const baseSize = 4 + connRatio * 16; // 4 a 20
+          sizes.push(baseSize);
+          
+          // Cor: reescalonada 0-1 baseada em conexões
+          colors.push(connRatio);
+          
+          // Para modo combinado: cor por documento
+          if (isCombined && n.source_doc) {
+            docColorsArr.push(docColors[n.source_doc] || 0.7);
+          }
+          
+          const docLabel = isCombined && n.source_doc ? `<br>Doc: ${n.source_doc.toUpperCase()}` : '';
+          texts.push(`Pág ${n.page}${docLabel}<br>Conexões: ${connectionCounts[idx]}<br>${n.content_preview || ''}`);
+        });
+        
+        const viewMode = document.getElementById('brain-view-mode')?.value || '3d';
+        
+        if (viewMode === '2d') {
+          // 2D: com conexões entre pontos próximos
+          const linesX = [null], linesY = [null];
+          
+          // Calcular conexões para 2D
+          for (let i = 0; i < neurons.length; i++) {
+            const dists = [];
+            for (let j = 0; j < neurons.length; j++) {
+              if (i !== j) {
+                const d = Math.sqrt(Math.pow(x[i]-x[j],2) + Math.pow(y[i]-y[j],2));
+                dists.push({idx: j, dist: d});
+              }
+            }
+            dists.sort((a, b) => a.dist - b.dist);
+            for (let m = 0; m < 3 && m < dists.length; m++) {
+              if (dists[m].dist < 0.5) {
+                linesX.push(x[i], x[dists[m].idx], null);
+                linesY.push(y[i], y[dists[m].idx], null);
+              }
+            }
+          }
+          
+          // Trace de conexões 2D
+          const conn2d = {
+            type: 'scatter',
+            mode: 'lines',
+            x: linesX,
+            y: linesY,
+            line: {color: '#1e293b', width: 2},
+            opacity: 0.5,
+            hoverinfo: 'skip',
+            name: 'Conexões'
+          };
+          
+          // Pontos 2D maiores
+          const trace2d = {
+            type: 'scatter',
+            mode: 'markers',
+            x: x, y: y,
+            marker: {
+              size: sizes.map(s => s * 2),
+              color: isCombined ? docColorsArr : colors,
+              colorscale: isCombined ? [
+                [0, '#E8503A'],    // RAF = vermelho
+                [0.5, '#10B981'],  // RAD = verde
+                [1, '#8B5CF6']    // outros = roxo
+              ] : 'Viridis',
+              cmin: 0,
+              cmax: isCombined ? 1 : Math.max(...colors, 0.01),
+              opacity: 0.9,
+              showscale: true,
+              line: {color: '#fff', width: 1}
+            },
+            hovertext: texts,
+            hoverinfo: 'text',
+            name: 'Neurônios'
+          };
+          
+          const layout2d = {
+            margin: {l:40, r:20, t:20, b:40},
+            xaxis: {title: 'X (PCA 1)'},
+            yaxis: {title: 'Y (PCA 2)'},
+            paper_bgcolor: '#fafafa',
+            plot_bgcolor: '#fafafa',
+            showlegend: true,
+            legend: {x: 0, y: 1}
+          };
+          Plotly.newPlot('brain-plot', [conn2d, trace2d], layout2d, {responsive: true});
+        
+        // Click em neurônio → abrir PDF na página
+        document.getElementById('brain-plot').on('plotly_click', function(data) {
+          if (data.points && data.points[0]) {
+            const point = data.points[0];
+            const page = neurons[point.pointIndex]?.page;
+            if (page) {
+              window.open(API_URL + '/pdf/raf#page=' + page, '_blank');
+            }
+          }
+        });
+        } else {
+          // 3D com conexões entre neurônios próximos
+          const traces = [];
+          
+          // 1. Conexões (linhas entre pontos próximos)
+          const k = 3; // conectar aos k vizinhos mais próximos
+          const connThreshold = 0.8; // threshold de similaridade
+          
+          // Calcular distâncias e criar conexões
+          const linesX = [null], linesY = [null], linesZ = [null];
+          
+          for (let i = 0; i < neurons.length; i++) {
+            // Encontrar vizinhos próximos
+            const dists = [];
+            for (let j = 0; j < neurons.length; j++) {
+              if (i === j) continue;
+              // Distância Euclidiana no espaço 3D
+              const d = Math.sqrt(
+                Math.pow(x[i] - x[j], 2) + 
+                Math.pow(y[i] - y[j], 2) + 
+                Math.pow(z[i] - z[j], 2)
+              );
+              dists.push({idx: j, dist: d});
+            }
+            dists.sort((a, b) => a.dist - b.dist);
+            
+            // Conectar aos k vizinhos mais próximos
+            for (let m = 0; m < Math.min(k, dists.length); m++) {
+              const j = dists[m].idx;
+              // Só conectar se não muito distante
+              if (dists[m].dist < 0.5) { // threshold ajustável
+                linesX.push(x[i], x[j], null);
+                linesY.push(y[i], y[j], null);
+                linesZ.push(z[i], z[j], null);
+              }
+            }
+          }
+          
+          // Trace de conexões (linhas)
+          const connTrace = {
+            type: 'scatter3d',
+            mode: 'lines',
+            x: linesX,
+            y: linesY,
+            z: linesZ,
+            line: {color: '#1e293b', width: 3},
+            opacity: 0.7,
+            hoverinfo: 'skip',
+            name: 'Conexões'
+          };
+          traces.push(connTrace);
+          
+          // 2. Pontos (neurônios)
+          const pointsTrace = {
+            type: 'scatter3d',
+            mode: 'markers',
+            x: x, y: y, z: z,
+            marker: {
+              size: sizes,
+              color: colors,
+              colorscale: 'Viridis',
+              opacity: 0.8,
+              showscale: true
+            },
+            hovertext: texts,
+            hoverinfo: 'text',
+            name: 'Neurônios'
+          };
+          traces.push(pointsTrace);
+          
+          const layout = {
+            margin: {l:0, r:0, t:0, b:0},
+            scene: {
+              xaxis: {title: 'X'},
+              yaxis: {title: 'Y'},
+              zaxis: {title: 'Z'},
+              aspectmode: 'data'
+            },
+            paper_bgcolor: '#fafafa',
+            plot_bgcolor: '#fafafa',
+            showlegend: true,
+            legend: {x: 0, y: 1}
+          };
+          Plotly.newPlot('brain-plot', traces, layout, {responsive: true});
+        
+        // Click em neurônio → abrir PDF na página
+        document.getElementById('brain-plot').on('plotly_click', function(data) {
+          if (data.points && data.points[0]) {
+            const point = data.points[0];
+            const page = neurons[point.pointIndex]?.page;
+            if (page) {
+              window.open(API_URL + '/pdf/raf#page=' + page, '_blank');
+            }
+          }
+        });
+        }
+        
+        status.textContent = `${neurons.length} neurônios | dim: ${brain.dim_original}`;
+        
+      } catch(e) {
+        status.textContent = 'Erro: ' + e.message;
+      }
+    };
+    
+    function toggleDrawer(id) {
+      const target = document.getElementById(id);
+      const wasOpen = target.classList.contains('open');
+      
+      // Fecha todas
+      document.querySelectorAll('.drawer').forEach(d => d.classList.remove('open'));
+      
+      if (!wasOpen) {
+        target.classList.add('open');
+      }
+      
+      const chatMsgs = document.getElementById('chat-messages');
+      setTimeout(() => { if(chatMsgs) chatMsgs.scrollTop = chatMsgs.scrollHeight; }, 300);
+    }
+
+    function renderSug() {
+      const cont = document.getElementById('suggestions');
+      const questions = window._appQuestions || [];
+      questions.forEach(q => {
+        const d = document.createElement('div');
+        d.className = 'chip'; d.textContent = q;
+        d.onclick = () => { document.getElementById('question').value = q; send(); };
+        cont.appendChild(d);
+      });
+    }
+
+    function addMsg(txt, role, src = []) {
+      const cont = document.getElementById('chat-messages');
+      const d = document.createElement('div');
+      d.className = `msg ${role}`; d.innerHTML = txt;
+      if(src.length) {
+        const s = document.createElement('div');
+        s.className = 'sources'; s.innerHTML = '<span style="color:#94a3b8; margin-right:4px;">Fontes:</span>';
+        
+        // FILTRAGEM ULTRA-ESTRITA:
+        // Pega todos os números no texto que venham após "pág", "pínina", "p." ou entre parênteses
+        const matches = [...txt.matchAll(/(?:p\u00E1g\.?|p\.|p\u00E1gina|\()(?:\s*)(\d+)/gi)];
+        const mentions = [...new Set(matches.map(m => m[1]))];
+        
+        // Mantém apenas as páginas citadas que realmente existem nos metadados
+        const citedPages = [...new Set(src.map(x => x.page.toString()))].filter(p => mentions.includes(p));
+        
+        // Se a IA não citou nada identificável (raro), mostra apenas a 1ª página do Top Chunks
+        const finalPages = citedPages.length > 0 ? citedPages : [...new Set(src.map(x => x.page.toString()))].slice(0, 1);
+
+        finalPages.forEach(p => {
+          const l = document.createElement('span'); l.className = 'page-link'; l.textContent = `pág ${p}`;
+          l.onclick = () => { 
+            tabManager.activateTab('pdf'); 
+            const viewer = document.getElementById('pdf-viewer');
+            if (viewer) {
+              l.classList.add('flash-active');
+              setTimeout(() => l.classList.remove('flash-active'), 2000);
+              const target = `${API_URL}/pdf/raf?v=${Date.now()}_${p}#page=${p}`;
+              const nv = document.createElement('iframe');
+              nv.id = viewer.id; nv.style.cssText = viewer.style.cssText;
+              viewer.src = "about:blank"; // Limpa o worker do navegador
+              setTimeout(() => {
+                nv.src = target;
+                viewer.parentNode.replaceChild(nv, viewer);
+              }, 100);
+            }
+          };
+          s.appendChild(l);
+        });
+        d.appendChild(s);
+      }
+      cont.appendChild(d); cont.scrollTop = cont.scrollHeight;
+      return d;
+    }
+
+    window.toggleSidebar = function() {
+      // Sidebar sempre visível - não permite collapse
+    }
+
+    window.toggleWide = function() {
+      const panel = document.getElementById('chat-panel');
+      panel.classList.remove('collapsed');
+      panel.classList.toggle('wide');
+    }
+
+    // Memória removida - conversas não são persistidas
+    // const STORAGE_KEY = 'vhf_chat_raf_v1';
+    function loadHistory() {
+      // Sem memória - sempre inicia limpo
+    }
+
+    function clearChat() { 
+      document.getElementById('chat-messages').innerHTML = '<div class="msg bot">Chat reiniciado. Como posso ajudar?</div>'; 
+      toggleDrawer('sug-drawer');
+    }
+
+    // ── Lógica de Configurações (localStorage) ──
+    async function loadConfig() {
+      try {
+        const [cRes, rRes] = await Promise.all([
+          fetch(API_URL + '/config'),
+          fetch(API_URL + '/reports')
+        ]);
+        const cfg = await cRes.json();
+        const reports = await rRes.json();
+        const myDoc = reports['raf'];
+        
+        // Disable Groq if no key
+        if(!cfg.groq_available) {
+           document.getElementById('lbl-llm-groq').classList.add('disabled');
+           if(localStorage.getItem('vhf_llm_provider') === 'groq') localStorage.setItem('vhf_llm_provider', 'gemini');
+        }
+
+        // Render Embedding Options dynamically
+        const embCont = document.getElementById('emb-options');
+        let embHtml = '';
+        if(myDoc && myDoc.embeddings) {
+           for(const [pid, hasIdx] of Object.entries(myDoc.embeddings)) {
+              if(!hasIdx) continue;
+              const pInfo = cfg.embedding_providers[pid] || { name: pid, dims: '' };
+              const isExhausted = (pid === 'gemini' && !cfg.gemini_available);
+              embHtml += `<div class="chip ${isExhausted?'exhausted':''}" id="chip-emb-${pid}" onclick="selectEmb('${pid}')">${pInfo.name}</div>`;
+           }
+        }
+        embCont.innerHTML = embHtml;
+
+        // Render LLM Options
+        const llmCont = document.getElementById('llm-options');
+        let llmHtml = '';
+        const llms = [
+          { id: 'groq', name: 'Llama 3.3 (Groq)', avail: cfg.groq_available },
+          { id: 'gemini', name: 'Gemini Flash', avail: cfg.gemini_available },
+          { id: 'jina', name: 'DeepSearch (Jina)', avail: true },
+          { id: 'bigpickle', name: 'Big Pickle (Free)', avail: cfg.bigpickle_available },
+          { id: 'raw_chunks', name: 'Só Chunks', avail: true }
+        ];
+        llms.forEach(l => {
+          llmHtml += `<div class="chip ${!l.avail?'exhausted':''}" id="chip-llm-${l.id}" onclick="selectLLM('${l.id}')">${l.name}</div>`;
+        });
+        llmCont.innerHTML = llmHtml;
+        
+        // Restore/Apply
+        selectLLM(localStorage.getItem('vhf_llm_provider') || 'groq', true);
+        selectEmb(localStorage.getItem('vhf_embedding_provider') || 'gemini', true);
+
+      } catch (e) {
+        console.error("Erro ao carregar configurações", e);
+      }
+    }
+
+    window.selectLLM = function(id, skipSave=false) {
+      document.querySelectorAll('#llm-options .chip').forEach(c => c.classList.remove('active'));
+      const chip = document.getElementById('chip-llm-' + id);
+      if(chip) {
+        chip.classList.add('active');
+        window.selectedLLM = id;
+        document.getElementById('llm-drawer').querySelector('.drawer-header').classList.add('has-selection');
+        if(!skipSave) { localStorage.setItem('vhf_llm_provider', id); }
+      }
+    }
+
+    window.selectEmb = function(id, skipSave=false) {
+      document.querySelectorAll('#emb-options .chip').forEach(c => c.classList.remove('active'));
+      const chip = document.getElementById('chip-emb-' + id);
+      if(chip) {
+        chip.classList.add('active');
+        window.selectedEmb = id;
+        document.getElementById('emb-drawer').querySelector('.drawer-header').classList.add('has-selection');
+        if(!skipSave) { localStorage.setItem('vhf_embedding_provider', id); }
+      }
+    }
+
+
+    // ── Lógica do Chatbot RAG Real ──
+    async function send() {
+      const qInput = document.getElementById('question');
+      const q = qInput.value.trim();
+      if(!q) return;
+      
+      qInput.value = '';
+      addMsg(q, 'user');
+      
+      if(document.getElementById('sug-drawer').classList.contains('open')) toggleDrawer('sug-drawer');
+
+      const botMsg = addMsg('<span style="opacity:0.5">Pensando...</span>', 'bot');
+      
+      const llm = window.selectedLLM || 'groq';
+      const emb = window.selectedEmb || 'gemini';
+
+      const user_keys = {
+        groq:   localStorage.getItem('vhf_user_groq_key') || '',
+        gemini: localStorage.getItem('vhf_user_gemini_key') || '',
+        jina:   localStorage.getItem('vhf_user_jina_key') || ''
+      };
+
+      try {
+        const res = await fetch(API_URL + '/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            question: q,
+            report: 'raf',
+            llm_provider: llm,
+            embedding_provider: emb,
+            user_keys: user_keys
+          })
+        });
+        
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        
+        // Remove o placeholder "Pensando..."
+        botMsg.remove();
+        
+        // Adiciona a resposta real usando a função addMsg (que tem filtragem e nav)
+        const realMsg = addMsg(data.answer.replace(/\\n/g, '<br>'), 'bot', data.sources);
+        realMsg.classList.add('flash-active');
+        setTimeout(() => realMsg.classList.remove('flash-active'), 3000);
+        
+      } catch (err) {
+        botMsg.innerHTML = `⚠️ Erro de conexão com o servidor. Tente novamente mais tarde.`;
+        console.error(err);
+      }
+      
+      const cont = document.getElementById('chat-messages');
+      cont.scrollTop = cont.scrollHeight;
+    }
+
+    // Init
+    loadHistory();
+    renderSug();
+    loadConfig();
+    
+    // Ativar aba inicial: PDF por padrão, ou ?tab da URL
+    const wantedTab = params.get('tab') || 'pdf';
+    if (tabManager.tabs[wantedTab]) {
+      tabManager.activateTab(wantedTab, false);
+      if (wantedTab === 'brain') {
+        setTimeout(loadBrain, 500);
+      }
+    }
+    
+    setTimeout(() => {
+      const msgCount = document.getElementById('chat-messages').children.length;
+      // Se tiver apenas a msg inicial (ou vazio), abre sugestões
+      if(msgCount <= 1) {
+        toggleDrawer('sug-drawer');
+      }
+    }, 500);
+    
+    // Envio pelo Enter
+    document.getElementById('question').addEventListener('keypress', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+    });
+  </script>
+</body>
+</html>

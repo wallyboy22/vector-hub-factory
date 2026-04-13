@@ -1,0 +1,10 @@
+{
+  "2026-04-12": {
+    "groq:llama-3.3-70b-versatile": 24965,
+    "jina:deepsearch": 289324,
+    "bigpickle:big-pickle": 14315
+  },
+  "2026-04-13": {
+    "groq:llama-3.3-70b-versatile": 30962
+  }
+}

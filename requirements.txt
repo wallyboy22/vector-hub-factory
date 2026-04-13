@@ -5,3 +5,8 @@ faiss-cpu
 numpy
 python-dotenv
 pydantic
+groq
+sentence-transformers
+requests
+python-multipart
+

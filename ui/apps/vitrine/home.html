@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vector Hub Factory</title>
+  <link rel="stylesheet" href="/assets/shared.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    
+    :root {
+      --bg-pale: #f8fafc;
+      --bg-card: #ffffff;
+      --text-main: #1e293b;
+      --text-sub: #64748b;
+      --accent: #E8503A;
+      --border: #e2e8f0;
+      --accent-glow: rgba(232, 80, 58, 0.15);
+    }
+    
+    body {
+      background: var(--bg-pale);
+      color: var(--text-main);
+      height: auto;
+      min-height: 100vh;
+      display: block;
+      margin: 0;
+      padding: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px 100px 24px; }
+
+    /* Banners de Modo */
+    .mode-banner {
+      width: 100%;
+      padding: 6px;
+      text-align: center;
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #fff;
+      display: none; /* hidden default, handled by JS */
+    }
+    .mode-banner.dev { background: #3b82f6; }
+    .mode-banner.user { background: #10b981; }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+    
+    .hub-header { margin-bottom: 30px; text-align: center; }
+    .hub-header h1 { font-size: 2.8rem; font-weight: 900; margin: 0; color: #0f172a; letter-spacing: -1px; }
+    .hub-header p { font-size: 1.15rem; color: var(--text-sub); margin: 8px 0 0 0; }
+
+    /* Tabs */
+    .tabs-nav {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 40px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1px;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      padding: 12px 24px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover { color: var(--text-main); }
+    .tab-btn.active { color: var(--accent); }
+    .tab-btn.active::after {
+      content: ''; position: absolute; bottom: -1px; left: 0; right: 0;
+      height: 3px; background: var(--accent); border-radius: 3px 3px 0 0;
+    }
+    .tab-btn.dev-only { display: none; } /* Show via JS */
+
+    .tab-content { display: none; animation: fadeIn 0.3s ease; }
+    .tab-content.active { display: block; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── TAB INTRO ────────────────────────────────────────────────────────── */
+    .intro-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center;
+      background: var(--bg-card); border-radius: 24px; padding: 40px;
+      box-shadow: 0 10px 30px -10px rgba(0,0,0,0.05); border: 1px solid var(--border);
+    }
+    .intro-text h2 { font-size: 2rem; font-weight: 900; margin-top: 0; color: #0f172a; }
+    .intro-text p { font-size: 1.05rem; line-height: 1.7; color: #475569; margin-bottom: 20px; }
+    .intro-badges { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 30px; }
+    .badge { background: #f1f5f9; padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; color: #334155; }
+    
+    .intro-graph { background: #f8fafc; border-radius: 16px; padding: 30px; border: 1px dashed #cbd5e1; }
+    .flow-step { background: #fff; border: 1px solid #e2e8f0; padding: 16px; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+    .flow-step h4 { margin: 0 0 4px 0; color: #0f172a; font-size: 0.95rem; }
+    .flow-step p { margin: 0; font-size: 0.8rem; color: #64748b; }
+    .flow-arrow { text-align: center; color: #cbd5e1; margin: 8px 0; }
+
+    /* ── TAB APPS ─────────────────────────────────────────────────────────── */
+    .docs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; }
+    .doc-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 28px; transition: all 0.2s ease; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+      display: flex; flex-direction: column;
+    }
+    .doc-card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+    .card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .card-emoji { font-size: 1.8rem; }
+    .card-header h3 { font-size: 1.2rem; font-weight: 800; flex: 1; margin: 0; }
+    .card-body { flex: 1; }
+    .btn-chatbot {
+      display: block; background: var(--accent); color: white; text-align: center; text-decoration: none;
+      padding: 14px; border-radius: 12px; font-weight: 800; margin-top: 12px; transition: 0.2s;
+    }
+    .btn-chatbot:hover { opacity: 0.9; transform: scale(1.02); }
+
+    /* ── Seções Genéricas de Dados/Admin ──────────────────────────────────── */
+    .admin-panel { background: #fff; border-radius: 16px; border: 1px solid var(--border); padding: 30px; margin-bottom: 30px; }
+    .admin-panel h2 { margin-top: 0; font-size: 1.4rem; font-weight: 800; border-bottom: 1px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 24px;}
+    
+    .placeholder-msg { text-align: center; padding: 40px; color: #94a3b8; font-style: italic; }
+    
+    /* Tabelas */
+    table.data-table { width: 100%; border-collapse: collapse; }
+    .data-table th, .data-table td { padding: 14px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+    .data-table th { font-weight: 700; color: #475569; font-size: 0.85rem; text-transform: uppercase; }
+    .data-table td { font-size: 0.95rem; color: #1e293b; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .key-wait { font-size: 0.72rem; color: #ef4444; font-weight: 600; margin-top: 4px; }
+
+    /* Progress UI */
+    .progress-container { margin-top: 8px; width: 100%; display: none; }
+    .progress-bar-bg { background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+    .progress-bar-fill { background: var(--accent); height: 100%; width: 0%; transition: width 0.3s; }
+    .progress-label { font-size: 0.7rem; font-weight: 700; color: var(--accent); display: flex; justify-content: space-between; }
+    
+    .btn-running { cursor: wait; opacity: 0.7; }
+    
+    .radio-option {
+      display: flex; align-items: center; gap: 8px; cursor: pointer;
+      padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0;
+      background: #fff; transition: 0.2s; font-size: 0.8rem;
+    }
+    .radio-option:hover { border-color: var(--accent); background: #fffaf9; }
+    .radio-option input { margin: 0; accent-color: var(--accent); }
+    .radio-option.disabled { opacity: 0.5; pointer-events: none; background: #f1f5f9; border-color: #cbd5e1; }
+
+    .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; display: inline-block; }
+    .status-ok { background: #dcfce7; color: #166534; }
+    .status-warn { background: #fef08a; color: #854d0e; }
+    .status-err { background: #fee2e2; color: #991b1b; }
+    
+    .action-btn { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; color: #334155; font-size: 0.8rem; transition: 0.2s;}
+    .action-btn:hover { background: #e2e8f0; }
+    .action-btn.primary { background: var(--accent); color: white; border: none; }
+    .action-btn.primary:hover { background: #d0432f; }
+
+    /* Upload Area */
+    .upload-area { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 40px; text-align: center; cursor: pointer; background: #f8fafc; transition: 0.2s; margin-bottom: 24px; }
+    .upload-area:hover { border-color: var(--accent); background: #fffaf9; }
+    .upload-icon { font-size: 2.5rem; margin-bottom: 12px; }
+    
+    /* Downloads Modal */
+    #downloads-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; display: none; align-items: center; justify-content: center; }
+    .downloads-modal-content { background: #fff; border-radius: 16px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+    .downloads-modal-header { padding: 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+    .downloads-modal-header h3 { margin: 0; font-size: 1.1rem; }
+    .downloads-modal-body { padding: 20px; }
+    .download-item { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; transition: 0.2s; }
+    .download-item:hover { background: #f8fafc; border-color: var(--accent); }
+    .download-item-icon { font-size: 1.5rem; }
+    .download-item-info { flex: 1; }
+    .download-item-name { font-weight: 700; font-size: 0.9rem; margin-bottom: 2px; }
+    .download-item-size { font-size: 0.75rem; color: #64748b; }
+    .download-item-btn { background: var(--accent); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.8rem; text-decoration: none; }
+    .download-item-btn:hover { opacity: 0.9; }
+    .download-zip-btn { display: block; width: 100%; padding: 14px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 800; font-size: 0.95rem; margin-bottom: 20px; text-align: center; text-decoration: none; }
+    .download-zip-btn:hover { background: #059669; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="hub-header">
+      <h1>Vector Hub Factory</h1>
+      <p id="hub-subtitle">Carregando...</p>
+    </div>
+
+    <!-- Tabs Nav -->
+    <div class="tabs-nav">
+      <button class="tab-btn active" id="tab-btn-intro" onclick="showTab('intro')">🎓 Descubra</button>
+      <button class="tab-btn" id="tab-btn-pdfs" onclick="showTab('pdfs')">📄 PDFs (Upload)</button>
+      <button class="tab-btn" id="tab-btn-embeddings" onclick="showTab('embeddings')">🧮 Embeddings</button>
+      <button class="tab-btn" id="tab-btn-apps" onclick="showTab('apps')">🤖 Aplicativos</button>
+      <button class="tab-btn" id="tab-btn-monitor" onclick="showTab('monitor')">📊 Monitor API</button>
+    </div>
+
+    <!-- Content 1: Intro -->
+    <div id="tab-intro" class="tab-content active">
+      <div class="intro-grid">
+        <div class="intro-text">
+          <h2>Bem-vindo à Fábrica.</h2>
+          <p>O Vector Hub Factory não é apenas uma interface de chat. É uma linha de montagem técnica para transformar Documentos Científicos Complexos em oráculos consultáveis via IA.</p>
+          <p>Nós recebemos o <strong>PDF</strong>, fragmentamos o conhecimento em pequenos <strong>Chunks</strong> semânticos, calculamos coordenadas multidimensionais (<strong>Embeddings</strong>) e o servimos através de uma cadeia <strong>Multi-LLM</strong> resiliente.</p>
+          <div class="intro-badges">
+            <span class="badge">🧠 RAG Dinâmico</span>
+            <span class="badge">🌐 Multi-Provedor (Groq/Gemini)</span>
+            <span class="badge">⚡ Fallback Automático</span>
+          </div>
+        </div>
+        <div class="intro-graph">
+          <div class="flow-step"><h4>1. Documento Raw</h4><p>Relatório PDF cru, inquebrável por IAs curtas.</p></div>
+          <div class="flow-arrow">▼</div>
+          <div class="flow-step"><h4>2. Chunking & Indexing</h4><p>Busca vetorial ultra-rápida (FAISS Local) sobre vetores de até 1024 dimensões.</p></div>
+          <div class="flow-arrow">▼</div>
+          <div class="flow-step"><h4>3. Rota de LLMs</h4><p>1º Llama 3.3 (Groq) → 2º Flash (Gemini) → Fallback (Raw Chunks).</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Content 2: Apps & Factory (MERGED) -->
+    <div id="tab-apps" class="tab-content">
+      <div class="admin-panel">
+        <h2>Aplicativos Publicados</h2>
+        <div class="docs-grid" id="apps-container" style="margin-bottom:40px;">
+          <!-- Renderizado dinamicamente -->
+        </div>
+
+        <div class="dev-only">
+          <h2 style="margin-top:60px;">Fábrica de Aplicativos (Lançar Novo)</h2>
+          <p style="color:#64748b;margin-top:-10px;margin-bottom:24px;">Combine um ou mais documentos vetorizados para criar uma nova instância de chatbot.</p>
+          
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin-bottom: 30px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+              <div>
+                <label style="display:block; font-weight:700; font-size:0.85rem; margin-bottom:8px;">Nome do Aplicativo:</label>
+                <input type="text" id="new-app-name" placeholder="Ex: Monitoramento Fuego 2024" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; outline:none;">
+              </div>
+              <div>
+                <label style="display:block; font-weight:700; font-size:0.85rem; margin-bottom:8px;">Identificador (Slug):</label>
+                <input type="text" id="new-app-id" placeholder="Ex: fuego-2024" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; outline:none;">
+              </div>
+            </div>
+            
+            <label style="display:block; font-weight:700; font-size:0.85rem; margin-top:20px; margin-bottom:8px;">Contexto (Selecione um ou mais PDFs):</label>
+            <div id="factory-pdf-selection" style="display:flex; flex-wrap:wrap; gap:10px;">
+               <!-- Checkboxes renderizados dinamicamente -->
+            </div>
+            
+            <button class="action-btn primary" onclick="handleCreateApp()" style="margin-top:24px; width:100%; padding:14px; font-size:1rem;">🚀 Criar e Publicar Aplicativo</button>
+            <div id="app-creation-status" style="margin-top:12px; font-size:0.85rem; text-align:center;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Content 3: PDFs (Dev Only) -->
+    <div id="tab-pdfs" class="tab-content">
+      <div class="admin-panel">
+        <h2>Gerenciamento de Entradas (PDFs)</h2>
+        <div class="upload-area" onclick="document.getElementById('factory-file-input').click()">
+          <div class="upload-icon">📥</div>
+          <h3 style="margin:0 0 8px;">Arraste um PDF ou clique aqui</h3>
+          <p style="margin:0;color:#64748b;font-size:0.9rem;">Registrar um novo documento para processamento.</p>
+          <input type="file" id="factory-file-input" style="display:none" accept=".pdf" onchange="handleUpload(this)">
+        </div>
+        <table class="data-table">
+          <thead><tr><th>Documento</th><th>Sigla</th><th>PDF?</th><th>Ação</th></tr></thead>
+          <tbody id="pdfs-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Content 4: Embeddings (Dev Only) -->
+    <div id="tab-embeddings" class="tab-content">
+      <div class="admin-panel">
+        <h2>Fábrica de Embeddings</h2>
+        <p style="color:#64748b;margin-top:-10px;margin-bottom:24px;">Controle a geração de índices FAISS multi-provedor.</p>
+        <div id="embeddings-container"></div>
+      </div>
+    </div>
+
+
+
+    <!-- Content 6: Monitor API -->
+    <div id="tab-monitor" class="tab-content">
+      <div class="admin-panel">
+        <h2>Saúde das APIs</h2>
+        
+        <div style="margin-bottom:30px; border:1px solid #e2e8f0; border-radius:12px; padding:20px; background:#f8fafc;">
+           <h3 style="margin:0 0 16px 0; font-size:0.95rem;">📊 Consumo de Hoje (Estimado)</h3>
+           <div id="usage-container"></div>
+        </div>
+
+        <table class="data-table">
+          <thead><tr><th>Provedor</th><th>Índice</th><th>Precisa Chave</th><th>Status</th><th>Tempo de Espera</th></tr></thead>
+          <tbody id="keys-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Tab Navigation with Hash support
+    window.showTab = function(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      
+      const btn = document.getElementById('tab-btn-' + tabId);
+      if(btn) btn.classList.add('active');
+      
+      const content = document.getElementById('tab-' + tabId);
+      if(content) content.classList.add('active');
+    };
+
+    function getUserKeys() {
+        return {
+            groq:   localStorage.getItem('vhf_user_groq_key') || '',
+            gemini: localStorage.getItem('vhf_user_gemini_key') || '',
+            jina:   localStorage.getItem('vhf_user_jina_key') || ''
+        };
+    }
+
+    function isArchitect() {
+        const keys = getUserKeys();
+        return (keys.groq.length > 5 || keys.gemini.length > 5 || keys.jina.length > 5);
+    }
+
+    function handleHashChange() {
+      const hash = window.location.hash.substring(1) || 'intro';
+      if(hash === 'data') showTab('embeddings');
+      else showTab(hash);
+    }
+    window.addEventListener('hashchange', handleHashChange);
+
+    // Load Data
+    async function loadData() {
+      try {
+        const [configRes, reportsRes, keysRes] = await Promise.all([
+          fetch('/config'), fetch('/reports'), fetch('/keys')
+        ]);
+        
+        if (!configRes.ok || !reportsRes.ok || !keysRes.ok) {
+           throw new Error(`Fetch failed: ${configRes.status} ${reportsRes.status} ${keysRes.status}`);
+        }
+
+        const config = await configRes.json();
+        const reports = await reportsRes.json();
+        const keys = await keysRes.json();
+
+        const hasAccess = config.dev_mode || isArchitect();
+
+        // 1. Modos de Interface
+        if (hasAccess) {
+          document.querySelectorAll('.dev-only').forEach(e => e.style.display = 'inline-block');
+          document.querySelectorAll('.dev-only-block').forEach(e => e.style.display = 'block');
+        } else {
+          document.querySelectorAll('.dev-only').forEach(e => e.style.display = 'none');
+          document.querySelectorAll('.dev-only-block').forEach(e => e.style.display = 'none');
+        }
+        document.getElementById('hub-subtitle').textContent = config.hub.subtitle;
+
+        // 2. Render Apps
+        const appsContainer = document.getElementById('apps-container');
+        appsContainer.innerHTML = '';
+        for (const [docId, doc] of Object.entries(reports)) {
+          // Só mostra em 'Apps' se já tem índice
+          if (!doc.embeddings || !doc.embeddings.gemini) continue; 
+          
+          appsContainer.innerHTML += `
+            <div class="doc-card" style="border-top: 6px solid ${doc.color || '#333'}">
+              <div class="card-header">
+                <span class="card-emoji">${doc.emoji || '📄'}</span>
+                <h3>${doc.name}</h3>
+              </div>
+              <div class="card-body">
+                <p>Fonte RAG disponível e pronta para consulta.</p>
+                <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+                  <button class="action-btn" style="flex:1; font-size:0.75rem; padding:8px 4px;" onclick="openDownloads('${docId}')">📥 Downloads</button>
+                  ${config.dev_mode ? `<button class="action-btn" style="flex:1; font-size:0.75rem; padding:8px 4px;" onclick="deleteAsset('app', '${docId}')">🗑️ Excluir</button>` : ''}
+                </div>
+              </div>
+              <a href="/${docId}" target="_top" class="btn-chatbot" style="background:${doc.color || '#333'}">
+                💬 Abrir Chatbot
+              </a>
+            </div>
+          `;
+        }
+
+        // Adiciona o Crossover (Relatórios Anuais) fixo se houver múltiplos
+        if (Object.keys(reports).length > 1) {
+          appsContainer.innerHTML += `
+            <div class="doc-card" style="border-top: 6px solid #1e293b">
+              <div class="card-header">
+                <span class="card-emoji">📚</span>
+                <h3>Busca Crossover Real</h3>
+              </div>
+              <div class="card-body">
+                <p>Pesquise integrando metadados e chunks de mútiplos documentos simultaneamente.</p>
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                  <a href="/download_cross" target="_blank" class="action-btn" style="flex:1;">📥 Download Todos</a>
+                  <button class="action-btn status-err" style="color:white; flex:1;" onclick="deleteAsset('app', 'relatorios_anuais')">🗑️ Excluir</button>
+                </div>
+              </div>
+              <a href="/relatorios_anuais" target="_top" class="btn-chatbot" style="background:#1e293b">🔍 RAG Transversal</a>
+            </div>
+          `;
+        }
+
+        // 3. Render PDFs & Embeddings se DEV_MODE
+        if (config.dev_mode) {
+          let pdfHtml = '', embedHtml = '', factoryPdfHtml = '';
+          for (const [docId, doc] of Object.entries(reports)) {
+            const hasEmbeds = Object.values(doc.embeddings).some(v => v === true);
+            // PDF Table
+            pdfHtml += `
+              <tr>
+                <td><strong>${doc.name}</strong></td>
+                <td><span class="badge">${doc.short}</span></td>
+                <td>${doc.has_pdf ? '<span class="status-badge status-ok">OK</span>' : '<span class="status-badge status-err">FALTA</span>'}</td>
+                <td>
+                  <button class="action-btn" title="Excluir Chunks" onclick="deleteAsset('chunks', '${docId}')">🧹 Chunks</button>
+                  <button class="action-btn status-err" style="color:white; background:#ef4444; border:none;" onclick="deleteAsset('pdf', '${docId}')">🗑️ PDF</button>
+                </td>
+              </tr>
+            `;
+
+            // Factory Checkboxes
+            factoryPdfHtml += `
+              <label class="radio-option ${!hasEmbeds ? 'disabled' : ''}" title="${!hasEmbeds ? 'Sem embeddings' : ''}">
+                <input type="checkbox" name="factory-pdf" value="${docId}" ${!hasEmbeds ? 'disabled' : ''}>
+                <span>${doc.emoji} ${doc.short}</span>
+              </label>
+            `;
+
+            // Embeddings Div
+            embedHtml += `
+              <div style="border:1px solid #e2e8f0; border-radius:12px; padding:20px; margin-bottom:20px;">
+                <h3 style="margin:0 0 16px 0; display:flex; align-items:center; gap:8px;">
+                  <span>${doc.emoji}</span> ${doc.short} - Matriz de Vetores
+                </h3>
+                <table class="data-table">
+                  <tbody>
+            `;
+            for (const [providerId, providerCfg] of Object.entries(config.embedding_providers)) {
+               const exists = doc.embeddings && doc.embeddings[providerId];
+               const jobKey = `job-${docId}-${providerId}`;
+               embedHtml += `
+                  <tr>
+                    <td style="width:250px"><strong>${providerCfg.name}</strong><br><small style="color:#64748b">${providerCfg.dims} dims</small></td>
+                    <td id="status-${jobKey}">${exists ? '<span class="status-badge status-ok">Indexado</span>' : '<span class="status-badge status-warn">Pendente</span>'}</td>
+                    <td style="text-align:right">
+                       <div id="controls-${jobKey}">
+                         ${exists ? `
+                           <button class="action-btn" onclick="deleteAsset('embedding', '${docId}', '${providerId}')">🗑️ Excluir</button>
+                           <button class="action-btn">💾 Baixar</button>
+                         ` : `<button class="action-btn primary" onclick="runEmbedJob('${docId}', '${providerId}', this)">⚡ Gerar</button>`}
+                       </div>
+                       <div class="progress-container" id="progress-cont-${jobKey}">
+                          <div class="progress-label"><span>Processando...</span><span id="pct-${jobKey}">0%</span></div>
+                          <div class="progress-bar-bg"><div class="progress-bar-fill" id="fill-${jobKey}"></div></div>
+                       </div>
+                    </td>
+                  </tr>
+               `;
+            }
+            embedHtml += `</tbody></table></div>`;
+          }
+          document.getElementById('pdfs-tbody').innerHTML = pdfHtml;
+          document.getElementById('embeddings-container').innerHTML = embedHtml;
+          document.getElementById('factory-pdf-selection').innerHTML = factoryPdfHtml;
+          
+          // API Keys
+          let keysHtml = '';
+          keys.forEach(k => {
+             const statusClass = k.status === 'DISPONÍVEL' ? 'status-ok' : (k.status === 'SEM CHAVE' ? 'status-warn' : 'status-err');
+             const statusLabel = k.status === 'DISPONÍVEL' ? '✓ Disponível' : (k.status === 'SEM CHAVE' ? '⚠ Precisa Chave' : '✕ ' + k.status);
+             keysHtml += `
+                <tr>
+                  <td><strong>${k.provider.toUpperCase()}</strong></td>
+                  <td>${k.key_index !== undefined ? '#' + k.key_index : '-'}</td>
+                  <td>${k.has_key ? '✓ Sim' : '✗ Não'}</td>
+                  <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                  <td>${k.remaining > 0 ? k.remaining + ' seg' : '-'}</td>
+                </tr>
+              `;
+           });
+           document.getElementById('keys-tbody').innerHTML = keysHtml;
+
+          // Usage
+          const uRes = await fetch('/usage');
+          const usageData = await uRes.json();
+          let usageHtml = '';
+          const limits = { 'groq': 50000, 'gemini': 500000, 'jina': 1000000 };
+          
+          Object.entries(usageData).forEach(([modelKey, tokens]) => {
+             const provider = modelKey.split(':')[0];
+             const limit = limits[provider] || 100000;
+             const pct = Math.min(100, (tokens / limit) * 100);
+             usageHtml += `
+               <div style="margin-bottom:12px;">
+                 <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-bottom:4px;">
+                   <span><strong>${modelKey}</strong></span>
+                   <span>${tokens.toLocaleString()} / ${limit.toLocaleString()} tkn</span>
+                 </div>
+                 <div style="height:8px; background:#e2e8f0; border-radius:4px; overflow:hidden;">
+                   <div style="width:${pct}%; height:100%; background:${pct > 80 ? '#ef4444' : 'var(--accent)'}; transition:0.3s"></div>
+                 </div>
+               </div>
+             `;
+          });
+          document.getElementById('usage-container').innerHTML = usageHtml || '<p style="font-size:0.75rem; color:#64748b">Nenhum uso registrado hoje.</p>';
+        }
+      } catch (err) {
+        console.error("Erro ao carregar Hub Data:", err);
+      }
+    }
+
+    // ── Fábrica de Embeddings ──
+    window.runEmbedJob = async function(docId, providerId, btn) {
+      const jobKey = `job-${docId}-${providerId}`;
+      const controls = document.getElementById(`controls-${jobKey}`);
+      const progCont = document.getElementById(`progress-cont-${jobKey}`);
+      const fill = document.getElementById(`fill-${jobKey}`);
+      const pctLabel = document.getElementById(`pct-${jobKey}`);
+      const statusCell = document.getElementById(`status-${jobKey}`);
+
+      try {
+        btn.disabled = true;
+        btn.textContent = 'Enviando...';
+        
+        const res = await fetch('/factory/embed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+             report_id: docId, 
+             provider: providerId,
+             user_keys: getUserKeys()
+          })
+        });
+        
+        if (!res.ok) throw new Error(await res.text());
+        const { job_id } = await res.json();
+        
+        // UI Transition
+        controls.style.display = 'none';
+        progCont.style.display = 'block';
+        statusCell.innerHTML = '<span class="status-badge status-warn">Em Fila</span>';
+
+        // Polling
+        const poll = setInterval(async () => {
+          try {
+            const sRes = await fetch(`/factory/status/${job_id}`);
+            const state = await sRes.json();
+            
+            if (state.progress !== undefined) {
+              fill.style.width = state.progress + '%';
+              pctLabel.textContent = state.progress + '%';
+            }
+            
+            if (state.status === 'done') {
+              clearInterval(poll);
+              statusCell.innerHTML = '<span class="status-badge status-ok">Indexado</span>';
+              progCont.innerHTML = `<span style="font-size:0.7rem; color:#166534; font-weight:700;">✅ ${state.message}</span>`;
+              // Recarregar dados após sucesso para atualizar outros painéis se necessário
+              setTimeout(loadData, 2000);
+            } else if (state.status === 'error') {
+               clearInterval(poll);
+               statusCell.innerHTML = '<span class="status-badge status-err">Erro</span>';
+               progCont.innerHTML = `<span style="font-size:0.7rem; color:#991b1b;">❌ ${state.message}</span>`;
+            }
+          } catch(e) {
+            console.error("Erro Polling:", e);
+          }
+        }, 1500);
+
+      } catch (err) {
+        alert("Erro ao iniciar job: " + err.message);
+        btn.disabled = false;
+        btn.textContent = '⚡ Gerar';
+      }
+    };
+
+    window.handleUpload = async function(input) {
+      if(!input.files.length) return;
+      const file = input.files[0];
+      const rid = prompt("Digite um identificador para este documento (ex: manual-2025):");
+      if(!rid) return;
+
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('report_id', rid);
+      fd.append('user_keys', JSON.stringify(getUserKeys()));
+
+      try {
+        const res = await fetch('/factory/upload', {
+           method: 'POST',
+           body: fd
+        });
+        const data = await res.json();
+        if(data.doc_id) {
+           alert("Upload concluído! Agora gere os embeddings.");
+           loadData();
+           showTab('embeddings');
+        } else {
+           alert("Erro: " + data.detail);
+        }
+      } catch(e) {
+        alert("Erro no upload: " + e.message);
+      }
+    };
+
+    window.handleCreateApp = async function() {
+       const name = document.getElementById('new-app-name').value;
+       const id = document.getElementById('new-app-id').value;
+       const selected = Array.from(document.querySelectorAll('input[name="factory-pdf"]:checked')).map(i => i.value);
+       const status = document.getElementById('app-creation-status');
+
+       if(!name || !id || selected.length === 0) {
+         alert("Preencha o nome, ID e selecione ao menos um PDF.");
+         return;
+       }
+
+       try {
+         status.innerHTML = '<span style="color:var(--text-sub)">Publicando aplicativo na vitrine...</span>';
+         const res = await fetch('/factory/create_app', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ 
+             doc_id: selected[0], 
+             app_id: id,
+             name: name,
+             docs: selected,
+             user_keys: getUserKeys()
+           })
+         });
+         const data = await res.json();
+         if(data.ok) {
+           status.innerHTML = `<span style="color:#166534; font-weight:700;">✅ Sucesso! <a href="${data.app_url}" target="_top" style="color:var(--accent)">Abrir Chatbot</a></span>`;
+           loadData();
+         }
+       } catch(e) {
+         status.innerHTML = `<span style="color:#991b1b;">❌ Erro ao criar: ${e.message}</span>`;
+       }
+    };
+
+    window.deleteAsset = async function(type, docId, provider = null) {
+      if(!confirm(`Deseja realmente excluir este ativo (${type})? Esta ação é permanente.`)) return;
+      try {
+        const res = await fetch('/factory/delete_asset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, doc_id: docId, provider })
+        });
+        const data = await res.json();
+        alert(data.message);
+        loadData();
+      } catch(e) {
+        alert("Erro ao excluir: " + e.message);
+      }
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadData();
+      handleHashChange();
+    });
+  </script>
+<!-- Downloads Modal -->
+  <div id="downloads-modal">
+    <div class="downloads-modal-content">
+      <div class="downloads-modal-header">
+        <h3>📥 Downloads - <span id="downloads-doc-name"></span></h3>
+        <button onclick="closeDownloads()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">×</button>
+      </div>
+      <div class="downloads-modal-body" id="downloads-list">
+        <!-- Files list rendered dynamically -->
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    async function openDownloads(docId) {
+      const modal = document.getElementById('downloads-modal');
+      const listContainer = document.getElementById('downloads-list');
+      const nameContainer = document.getElementById('downloads-doc-name');
+      
+      modal.style.display = 'flex';
+      nameContainer.textContent = docId.toUpperCase();
+      listContainer.innerHTML = '<p style="text-align:center;color:#64748b;">Carregando arquivos...</p>';
+      
+      try {
+        const res = await fetch(`/files/${docId}`);
+        const data = await res.json();
+        
+        if (!data.files || data.files.length === 0) {
+          listContainer.innerHTML = '<p style="text-align:center;color:#64748b;">Nenhum arquivo disponível para download.</p>';
+          return;
+        }
+        
+        let zipSize = data.files.reduce((acc, f) => acc + f.size, 0);
+        let zipSizeText = (zipSize / 1024 / 1024).toFixed(1) + ' MB';
+        
+        listContainer.innerHTML = `
+          <a href="/download/${docId}" class="download-zip-btn" download>📦 Download Completo (.zip) - ${zipSizeText}</a>
+          <h4 style="margin:20px 0 12px; font-size:0.85rem; color:#64748b; text-transform:uppercase;">Arquivos Individuais</h4>
+        `;
+        
+        for (const file of data.files) {
+          let sizeText = file.size < 1024 ? file.size + ' B' : (file.size / 1024).toFixed(1) + ' KB';
+          let icon = file.type === 'pdf' ? '📄' : '📊';
+          
+          listContainer.innerHTML += `
+            <div class="download-item">
+              <span class="download-item-icon">${icon}</span>
+              <div class="download-item-info">
+                <div class="download-item-name">${file.name}</div>
+                <div class="download-item-size">${sizeText}</div>
+              </div>
+              <a href="/download/${docId}/file/${encodeURIComponent(file.path)}" class="download-item-btn" download>↓</a>
+            </div>
+          `;
+        }
+      } catch (e) {
+        listContainer.innerHTML = '<p style="text-align:center;color:#ef4444;">Erro ao carregar arquivos.</p>';
+      }
+    }
+    
+    function closeDownloads() {
+      document.getElementById('downloads-modal').style.display = 'none';
+    }
+    
+    document.getElementById('downloads-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeDownloads();
+    });
+  </script>
+</body>
+</html>

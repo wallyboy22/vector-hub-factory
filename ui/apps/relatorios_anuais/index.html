@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatórios Anuais — Vector Hub Factory</title>
+  <link rel="stylesheet" href="/assets/shared.css?v=3.0">
+  <script src="/assets/config.js?v=2.2"></script>
+  <script src="/assets/tab-manager.js?v=2.2"></script>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <style>
+    :root { --primary-color: #1e293b; }
+    body { background: #fdfdfd; }
+    
+    .badge-info { font-size: 0.7rem; color: #94a3b8; margin-top: 4px; line-height: 1.4; display: block; }
+    /* New drawer logic */
+    .drawer-content { display: none; padding: 12px 20px 16px; background: #fafafa; border-top: 1px solid #e2e8f0; flex-wrap: wrap; gap: 6px; }
+    .drawer.open .drawer-content { display: flex; }
+  </style>
+</head>
+<body class="app-shell">
+  <header>
+    <div class="header-left">
+      <span style="font-size: 1.4rem;">📚</span>
+      <h1>Relatórios Anuais <span style="font-weight:400; color:#94a3b8">(RAF + RAD)</span></h1>
+    </div>
+    <div class="header-right">
+       <span style="font-size: 0.7rem; color: #94a3b8; font-weight:700; margin-right:8px;">DOWNLOADS:</span>
+       <a href="/pdf/raf" class="btn-download" style="margin-right:4px;">🔥 RAF</a>
+       <a href="/pdf/rad" class="btn-download">🌳 RAD</a>
+    </div>
+  </header>
+
+  <div id="main-workspace">
+      <div id="chat-panel">
+        <div class="sidebar-toggle" onclick="toggleSidebar()" title="Recolher/Expandir Chat">◂</div>
+        <div class="sidebar-toggle expand-btn" onclick="toggleWide()" title="Aumentar Foco no Chat">↔</div>
+        <div class="vertical-label">SEARCH INTEGRATION</div>
+        
+        <div id="chat-messages">
+          <div class="msg bot">Olá! Esta ferramenta cruza os dados anuais do RAF e do RAD. Como posso ajudar com sua análise integrada?</div>
+        </div>
+
+        <div style="font-size: 0.65rem; color: #94a3b8; padding: 6px 20px; text-align: center; border-top: 1px solid var(--border-color); background: #fafafa; display: flex; justify-content: center; align-items: center; gap: 8px;">
+          <span>⚠️ IA Experimental: Verifique sempre as fontes nos PDFs originais.</span>
+          <span style="cursor: pointer; opacity: 0.6; font-size: 0.8rem; transition: 0.2s;" onclick="clearChat()" title="Limpar Conversa" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">🗑️</span>
+        </div>
+
+        <div id="input-area">
+          <div class="input-row">
+            <textarea id="question" rows="1" placeholder="Sua dúvida sobre o fogo..."></textarea>
+            <button class="btn-send" onclick="send()">➔</button>
+          </div>
+        </div>
+
+        <div class="chat-footer">
+          <span>Pronto para pesquisar.</span>
+        </div>
+
+        <!-- Gavetas Order: Perguntas -> Busca -> Resposta -->
+        <div class="suggestions-drawer drawer" id="sug-drawer">
+          <div class="drawer-header" onclick="toggleDrawer('sug-drawer')">
+            <span>Explore Sugestões</span>
+            <div class="icon">▾</div>
+          </div>
+          <div class="drawer-content">
+            <div class="drawer-desc">Dúvidas comuns identificadas neste relatório:</div>
+            <div id="suggestions" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+          </div>
+        </div>
+
+        <div class="drawer" id="emb-drawer">
+          <div class="drawer-header" onclick="toggleDrawer('emb-drawer')">
+            <span>🧠 Motores de Busca</span>
+            <div class="icon">▾</div>
+          </div>
+          <div class="drawer-content">
+            <div class="drawer-desc">Tecnologia (Embeddings) para encontrar os trechos mais relevantes:</div>
+            <div id="emb-options" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+          </div>
+        </div>
+
+        <div class="drawer" id="llm-drawer">
+          <div class="drawer-header" onclick="toggleDrawer('llm-drawer')">
+            <span>💬 Motores de Resposta</span>
+            <div class="icon">▾</div>
+          </div>
+          <div class="drawer-content">
+            <div class="drawer-desc">Inteligência Artificial que interpretará e responderá sua dúvida:</div>
+            <div id="llm-options" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+          </div>
+        </div>
+
+      </div> <!-- fim chat-panel -->
+
+    <!-- Right side canvas / tabs -->
+    <div id="canvas-container"></div>
+  </div>
+
+  <script>
+    console.log('[RELATORIOS] Script starting...');
+    const API_URL = window.VHF_CONFIG?.API_URL || '';
+    const APP_ID = 'relatorios_anuais';
+    
+    console.log('[RELATORIOS] API_URL:', API_URL);
+    
+    async function loadAppConfig() {
+      try {
+        const res = await fetch(API_URL + '/factory/apps');
+        const apps = await res.json();
+        const app = apps[APP_ID];
+        if (app) {
+          document.querySelector('header .header-left span').textContent = app.emoji;
+          document.querySelector('header h1').innerHTML = `${app.name} <span style="font-weight:400; color:#94a3b8">(2024)</span>`;
+          
+          if (app.questions && app.questions.length) {
+            const shuffled = [...app.questions].sort(() => Math.random() - 0.5);
+            window._appQuestions = shuffled;
+          }
+        }
+      } catch(e) { console.error('Erro configurando app:', e); }
+    }
+    loadAppConfig();
+    
+    const tabManager = new TabManager('canvas-container');
+    const params = new URLSearchParams(window.location.search);
+    const initialTab = params.get('tab') || 'raf';
+    
+    tabManager.addTab('raf', 'RAF PDF', false, 
+      `<iframe id="pdf-raf" style="width:100%; height:100%; border:none;" src="${API_URL}/pdf/raf#toolbar=0"></iframe>`, 
+      '🔥'
+    );
+    tabManager.addTab('rad', 'RAD PDF', false, 
+      `<iframe id="pdf-rad" style="width:100%; height:100%; border:none;" src="${API_URL}/pdf/rad#toolbar=0"></iframe>`, 
+      '🌳'
+    );
+    tabManager.addTab('brain', 'Brain', false,
+      `<div id="brain-container" style="width:100%; height:100%; display:flex; flex-direction:column;">
+        <div style="padding:12px; display:flex; gap:8px; align-items:center; background:#fafafa; border-bottom:1px solid #e2e8f0; flex-wrap:wrap;">
+          <div style="display:flex; gap:4px; align-items:center;">
+            <span style="font-size:0.75rem; color:#64748b;">Provider:</span>
+            <div class="chip brain-provider-chip active" data-value="gemini" onclick="selectBrainProvider(this)">Gemini</div>
+            <div class="chip brain-provider-chip" data-value="jina" onclick="selectBrainProvider(this)">Jina</div>
+          </div>
+          <div style="display:flex; gap:4px; align-items:center;">
+            <span style="font-size:0.75rem; color:#64748b;">Doc:</span>
+            <div class="chip brain-doc-chip active" data-value="raf" onclick="selectBrainDoc(this)">RAF</div>
+            <div class="chip brain-doc-chip" data-value="rad" onclick="selectBrainDoc(this)">RAD</div>
+            <div class="chip brain-doc-chip" data-value="all" onclick="selectBrainDoc(this)">Todos</div>
+          </div>
+          <div style="display:flex; gap:4px; align-items:center;">
+            <span style="font-size:0.75rem; color:#64748b;">Visualização:</span>
+            <div class="chip brain-mode-chip active" data-value="3d" onclick="selectBrainMode(this)">3D</div>
+            <div class="chip brain-mode-chip" data-value="2d" onclick="selectBrainMode(this)">2D</div>
+            <div class="chip brain-mode-chip" data-value="info" onclick="selectBrainMode(this)">ℹ️ Info</div>
+          </div>
+          <span id="brain-status" style="font-size:0.75rem; color:#64748b;"></span>
+        </div>
+        <div id="brain-plot" style="flex:1;"></div>
+      </div>`,
+      '🧠'
+    );
+    
+    window.selectBrainProvider = function(el) {
+      document.querySelectorAll('.brain-provider-chip').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      loadBrain();
+    }
+    
+    window.selectBrainDoc = function(el) {
+      document.querySelectorAll('.brain-doc-chip').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      loadBrain();
+    }
+    
+    window.selectBrainMode = function(el) {
+      document.querySelectorAll('.brain-mode-chip').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      const mode = el.dataset.value;
+      if (mode === 'info') {
+        showBrainInfo();
+      } else {
+        loadBrain();
+      }
+    }
+    
+    window.showBrainInfo = async function() {
+      const provider = document.querySelector('.brain-provider-chip.active')?.dataset.value || 'gemini';
+      
+      let rafGemini = { neurons: '?', dims: '?' }, rafJina = { neurons: '?', dims: '?' };
+      let radGemini = { neurons: '?', dims: '?' }, radJina = { neurons: '?', dims: '?' };
+      
+      try {
+        const [rafG, rafJ, radG, radJ] = await Promise.all([
+          fetch(API_URL + '/brain/raf?provider=gemini'),
+          fetch(API_URL + '/brain/raf?provider=jina'),
+          fetch(API_URL + '/brain/rad?provider=gemini'),
+          fetch(API_URL + '/brain/rad?provider=jina')
+        ]);
+        if (rafG.ok) { const b = await rafG.json(); rafGemini = { neurons: b.neurons?.length || '?', dims: b.dim_original || '742' }; }
+        if (rafJ.ok) { const b = await rafJ.json(); rafJina = { neurons: b.neurons?.length || '?', dims: b.dim_original || '1036' }; }
+        if (radG.ok) { const b = await radG.json(); radGemini = { neurons: b.neurons?.length || '?', dims: b.dim_original || '742' }; }
+        if (radJ.ok) { const b = await radJ.json(); radJina = { neurons: b.neurons?.length || '?', dims: b.dim_original || '1036' }; }
+      } catch(e) { console.error('Error fetching neuron counts:', e); }
+      
+      const parseN = n => parseInt(n) || 0;
+      const totalGemini = parseN(rafGemini.neurons) + parseN(radGemini.neurons);
+      const totalJina = parseN(rafJina.neurons) + parseN(radJina.neurons);
+      const totalChunks = parseN(rafGemini.neurons) + parseN(radGemini.neurons);
+      
+      const info = '<div style="font-family:system-ui;line-height:1.6;padding:32px;height:100%;box-sizing:border-box;overflow:auto;background:#fff;">' +
+        '<h3 style="margin-top:0;color:var(--primary-color);">🧠 Visualização do Cérebro</h3>' +
+        '<h4 style="color:#334155;margin-bottom:8px;">O que são os neurônios?</h4>' +
+        '<p style="color:#475569;">Cada ponto representa um chunk (fragmento) do documento convertido em embedding. A posição no espaço 3D reflete a similaridade semântica entre os fragmentos.</p>' +
+        '<h4 style="color:#334155;margin-bottom:8px;">Conexões (k-NN)</h4>' +
+        '<p style="color:#475569;">Cada neurônio se conecta aos 3 vizinhos mais próximos semanticamente (k = 3), formando uma rede baseada em proximidade de significado.</p>' +
+        '<h4 style="color:#334155;margin-bottom:8px;">Tamanho dos pontos</h4>' +
+        '<p style="color:#475569;">O tamanho de cada ponto é proporcional ao seu número de conexões (degree centrality).<br>→ Pontos maiores indicam maior relevância estrutural dentro da rede.</p>' +
+        '<h4 style="color:#334155;margin-bottom:12px;">📊 Modelos, Chunks e Neurônios por Documento</h4>' +
+        '<p style="color:#64748b;font-size:0.85rem;margin-bottom:12px;">Valores gerados automaticamente em função dos modelos e dos PDFs de entrada disponíveis</p>' +
+        '<table style="width:100%;border-collapse:collapse;background:#fff;border-radius:4px;overflow:hidden;margin-bottom:16px;">' +
+        '<tr style="background:#f1f5f9;"><th style="padding:10px;border:1px solid #e2e8f0;text-align:left;">Documento</th>' +
+        '<th style="padding:10px;border:1px solid #e2e8f0;text-align:center;">Chunks</th>' +
+        '<th style="padding:10px;border:1px solid #e2e8f0;text-align:center;background:#fff3cd;">Gemini (dims)</th>' +
+        '<th style="padding:10px;border:1px solid #e2e8f0;text-align:center;background:#d4edda;">Jina AI (dims)</th></tr>' +
+        '<tr><td style="padding:8px;border:1px solid #e2e8f0;"><b>PDF RAD</b></td>' +
+        '<td style="padding:8px;border:1px solid #e2e8f0;text-align:center;">' + radGemini.neurons + '</td>' +
+        '<td style="padding:8px;border:1px solid #e2e8f0;text-align:center;">' + radGemini.neurons + ' (' + radGemini.dims + ')</td>' +
+        '<td style="padding:8px;border:1px solid #e2e8f0;text-align:center;">' + radJina.neurons + ' (' + radJina.dims + ')</td></tr>' +
+        '<tr><td style="padding:8px;border:1px solid #e2e8f0;"><b>PDF RAF</b></td>' +
+        '<td style="padding:8px;border:1px solid #e2e8f0;text-align:center;">' + rafGemini.neurons + '</td>' +
+        '<td style="padding:8px;border:1px solid #e2e8f0;text-align:center;">' + rafGemini.neurons + ' (' + rafGemini.dims + ')</td>' +
+        '<td style="padding:8px;border:1px solid #e2e8f0;text-align:center;">' + rafJina.neurons + ' (' + rafJina.dims + ')</td></tr>' +
+        '<tr style="background:#f8f9fa;"><td style="padding:8px;border:1px solid #e2e8f0;"><b>Total</b></td>' +
+        '<td style="padding:8px;border:1px solid #e2e8f0;text-align:center;font-weight:bold;">' + totalChunks + '</td>' +
+        '<td style="padding:8px;border:1px solid #e2e8f0;text-align:center;font-weight:bold;">' + totalGemini + '</td>' +
+        '<td style="padding:8px;border:1px solid #e2e8f0;text-align:center;font-weight:bold;">' + totalJina + '</td></tr>' +
+        '</table>' +
+        '<p style="color:#475569;margin-bottom:4px;"><b>Modelos utilizados:</b></p>' +
+        '<p style="color:#64748b;margin-bottom:8px;">Gemini: gemini-embedding-001<br>Jina AI: jina-embeddings-v3</p>' +
+        '<p style="color:#475569;margin-bottom:4px;"><b>Custo:</b></p>' +
+        '<p style="color:#64748b;margin-bottom:16px;">Gemini: Gratuito (com quota)<br>Jina AI: Gratuito</p>' +
+        '<h4 style="color:#334155;margin-bottom:8px;">🧩 Cálculo dos Neurônios</h4>' +
+        '<p style="color:#475569;">O número de neurônios corresponde diretamente à quantidade de chunks gerados a partir dos documentos de entrada.</p>' +
+        '<p style="color:#475569;margin-top:8px;">Cada PDF é processado de forma independente:</p>' +
+        '<ul style="color:#475569;margin-top:4px;"><li>Cada documento é dividido em chunks</li><li>Cada chunk gera um embedding vetorial</li><li>Cada embedding é representado como um ponto (neurônio) na visualização</li></ul>' +
+        '<p style="color:#475569;margin-top:8px;">O total de neurônios é a soma dos chunks de todos os documentos.</p>' +
+        '<p style="color:#475569;margin-top:8px;">A dimensionalidade dos embeddings depende do modelo selecionado:</p>' +
+        '<ul style="color:#475569;margin-top:4px;"><li>Gemini: ' + (rafGemini.dims || '742') + ' dimensões</li><li>Jina AI: ' + (rafJina.dims || '1036') + ' dimensões</li></ul>' +
+        '<p style="color:#475569;margin-top:8px;">Para permitir a visualização, aplicamos PCA (Principal Component Analysis) para reduzir os vetores ao espaço 3D, preservando ao máximo a estrutura semântica.</p>' +
+        '<h4 style="color:#334155;margin-top:16px;margin-bottom:8px;">💡 Observação</h4>' +
+        '<p style="color:#64748b;">Os valores exibidos são dinâmicos e variam conforme os modelos disponíveis e os documentos carregados.</p>' +
+        '</div>';
+      document.getElementById('brain-plot').innerHTML = info;
+      document.getElementById('brain-status').textContent = 'Info';
+    }
+    
+    window.loadBrain = async function() {
+      console.log('[loadBrain] Starting...');
+      const status = document.getElementById('brain-status');
+      status.textContent = 'Carregando...';
+      
+      const provider = document.querySelector('.brain-provider-chip.active')?.dataset.value || 'gemini';
+      const doc_id = document.querySelector('.brain-doc-chip.active')?.dataset.value || 'raf';
+      const viewMode = document.querySelector('.brain-mode-chip.active')?.dataset.value || '3d';
+      
+      let url;
+      if (doc_id === 'all') {
+        url = API_URL + '/brain/combined?provider=' + provider;
+      } else {
+        url = API_URL + '/brain/' + doc_id + '?provider=' + provider;
+      }
+      
+      console.log('[loadBrain] Fetching:', url);
+      
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Cérebro não encontrado');
+        const brain = await res.json();
+        
+        const neurons = brain.neurons || [];
+        console.log('[loadBrain] Got', neurons.length, 'neurons');
+        
+        if (neurons.length === 0) {
+          status.textContent = 'Nenhum neurônio encontrado';
+          return;
+        }
+        
+        const x = [];
+        const y = [];
+        const z = [];
+        
+        for (let i = 0; i < neurons.length; i++) {
+          const n = neurons[i];
+          const c = n.coords_3d || [0, 0, 0];
+          x.push(c[0]);
+          y.push(c[1] || 0);
+          z.push(c[2] || 0);
+        }
+        
+        // Calcular conexões (k=3 vizinhos mais próximos - BIDIRECIONAL)
+        const K = 3;
+        const connectionCounts = neurons.map(function() { return 0; });
+        
+        // Primeiro: contar todas as conexões K (sem threshold)
+        for (let i = 0; i < neurons.length; i++) {
+          const dists = [];
+          for (let j = 0; j < neurons.length; j++) {
+            if (i !== j) {
+              let d = Math.sqrt(
+                Math.pow(x[i] - x[j], 2) + 
+                Math.pow(y[i] - y[j], 2) + 
+                Math.pow(z[i] - z[j], 2)
+              );
+              dists.push({ idx: j, dist: d });
+            }
+          }
+          dists.sort(function(a, b) { return a.dist - b.dist; });
+          
+          // Conectar aos K mais próximos - bidirecional (conta para ambos)
+          for (let m = 0; m < Math.min(K, dists.length); m++) {
+            connectionCounts[i]++;
+            connectionCounts[dists[m].idx]++; // conexão bidirecional
+          }
+        }
+        
+        // Calcular min/max para sizing
+        let minConn = connectionCounts[0];
+        let maxConn = connectionCounts[0];
+        for (let i = 1; i < connectionCounts.length; i++) {
+          if (connectionCounts[i] < minConn) minConn = connectionCounts[i];
+          if (connectionCounts[i] > maxConn) maxConn = connectionCounts[i];
+        }
+        const connRange = maxConn - minConn || 1;
+        
+        // Segundo: gerar linhas de conexão (apenas para vizinhos próximos < 0.5)
+        const linesX = [null];
+        const linesY = [null];
+        const linesZ = [null];
+        
+        for (let i = 0; i < neurons.length; i++) {
+          const dists = [];
+          for (let j = 0; j < neurons.length; j++) {
+            if (i !== j) {
+              let d = Math.sqrt(
+                Math.pow(x[i] - x[j], 2) + 
+                Math.pow(y[i] - y[j], 2) + 
+                Math.pow(z[i] - z[j], 2)
+              );
+              dists.push({ idx: j, dist: d });
+            }
+          }
+          dists.sort(function(a, b) { return a.dist - b.dist; });
+          
+          for (let m = 0; m < Math.min(K, dists.length); m++) {
+            if (dists[m].dist < 0.5) {
+              linesX.push(x[i], x[dists[m].idx], null);
+              linesY.push(y[i], y[dists[m].idx], null);
+              if (viewMode !== '2d') {
+                linesZ.push(z[i], z[dists[m].idx], null);
+              }
+            }
+          }
+        }
+        
+        // Cores e tamanhos baseados no documento
+        const colors = [];
+        const sizes = [];
+        
+        for (let i = 0; i < neurons.length; i++) {
+          const n = neurons[i];
+          let colorValue;
+          let sizeValue;
+          
+          if (doc_id === 'all' && n.source_doc) {
+            // Cores diferentes para RAF e RAD quando combinados
+            if (n.source_doc === 'raf') {
+              colorValue = '#E8503A';
+              sizeValue = 6 + (connectionCounts[i] - minConn) / connRange * 18;
+            } else {
+              colorValue = '#10B981';
+              sizeValue = 6 + (connectionCounts[i] - minConn) / connRange * 18;
+            }
+          } else if (doc_id === 'raf') {
+            colorValue = '#E8503A';
+            sizeValue = 6 + (connectionCounts[i] - minConn) / connRange * 18;
+          } else if (doc_id === 'rad') {
+            colorValue = '#10B981';
+            sizeValue = 6 + (connectionCounts[i] - minConn) / connRange * 18;
+          } else {
+            colorValue = '#888888';
+            sizeValue = 6 + (connectionCounts[i] - minConn) / connRange * 18;
+          }
+          
+          colors.push(colorValue);
+          sizes.push(sizeValue);
+        }
+        
+        // Texto hover com informações completas (como RAF/RAD)
+        const texts = [];
+        for (let i = 0; i < neurons.length; i++) {
+          const n = neurons[i];
+          let label = 'Pág ' + (n.page || '?');
+          
+          // Label do documento
+          if (doc_id === 'all' && n.source_doc) {
+            label += ' (' + n.source_doc.toUpperCase() + ')';
+          }
+          
+          // Número real de conexões (bidirecional)
+          label += '<br>Conexões: ' + connectionCounts[i];
+          
+          // Coordenadas
+          const coords = n.coords_3d || [];
+          if (coords.length >= 3) {
+            label += '<br>X: ' + coords[0].toFixed(3) + ', Y: ' + coords[1].toFixed(3) + ', Z: ' + coords[2].toFixed(3);
+          }
+          
+          // Preview do conteúdo
+          const content = (n.content_preview || '').substring(0, 150);
+          if (content) {
+            label += '<br>' + content + (content.length >= 150 ? '...' : '');
+          }
+          
+          texts.push(label);
+        }
+        
+        // Corescale
+        let colorscale = 'Viridis';
+        if (doc_id === 'raf') {
+          colorscale = [[0, '#E8503A'], [1, '#ff7f50']];
+        }
+        if (doc_id === 'rad') {
+          colorscale = [[0, '#10B981'], [1, '#34d399']];
+        }
+        
+        // Traces: primeiro as linhas, depois os pontos
+        const traces = [];
+        
+        // Linhas de conexão
+        if (viewMode === '2d') {
+          traces.push({
+            type: 'scatter',
+            mode: 'lines',
+            x: linesX,
+            y: linesY,
+            line: { color: '#94a3b8', width: 1 },
+            opacity: 0.5,
+            hoverinfo: 'skip',
+            name: 'Conexões'
+          });
+        } else {
+          traces.push({
+            type: 'scatter3d',
+            mode: 'lines',
+            x: linesX,
+            y: linesY,
+            z: linesZ,
+            line: { color: '#94a3b8', width: 2 },
+            opacity: 0.5,
+            hoverinfo: 'skip',
+            name: 'Conexões'
+          });
+        }
+        
+        // Pontos dos neurônios
+        const pointsTrace = {
+          type: viewMode === '2d' ? 'scatter' : 'scatter3d',
+          mode: 'markers',
+          x: x,
+          y: y,
+          marker: {
+            size: sizes,
+            color: colors,
+            opacity: 0.85,
+            line: { color: '#ffffff', width: 1 }
+          },
+          text: texts,
+          hoverinfo: 'text',
+          name: 'Neurônios'
+        };
+        
+        if (viewMode !== '2d') {
+          pointsTrace.z = z;
+        }
+        
+        traces.push(pointsTrace);
+        
+        let layout;
+        if (viewMode === '2d') {
+          layout = {
+            margin: { l: 40, r: 20, t: 20, b: 40 },
+            xaxis: { title: 'X' },
+            yaxis: { title: 'Y' },
+            paper_bgcolor: '#fafafa',
+            showlegend: true,
+            legend: { x: 0, y: 1 }
+          };
+        } else {
+          layout = {
+            scene: {
+              xaxis: { title: 'X' },
+              yaxis: { title: 'Y' },
+              zaxis: { title: 'Z' }
+            },
+            paper_bgcolor: '#fafafa',
+            showlegend: true,
+            legend: { x: 0, y: 1 }
+          };
+        }
+        
+        console.log('[loadBrain] Rendering Plotly...');
+        Plotly.newPlot('brain-plot', traces, layout, { responsive: true });
+        status.textContent = neurons.length + ' neurônios' + (doc_id !== 'all' ? ' (' + doc_id.toUpperCase() + ')' : '');
+      } catch(e) {
+        console.error('[loadBrain] Error:', e);
+        status.textContent = 'Erro: ' + e.message;
+      }
+    };
+
+    function toggleDrawer(id) { 
+      const target = document.getElementById(id);
+      const wasOpen = target.classList.contains('open');
+      document.querySelectorAll('.drawer').forEach(d => d.classList.remove('open'));
+      if(!wasOpen) target.classList.add('open');
+      const chatMsgs = document.getElementById('chat-messages');
+      setTimeout(() => { if(chatMsgs) chatMsgs.scrollTop = chatMsgs.scrollHeight; }, 300);
+}
+
+    function renderSug() {
+      const cont = document.getElementById('suggestions');
+      const questions = window._appQuestions || [];
+      questions.forEach(q => {
+        const d = document.createElement('div');
+        d.className = 'chip';
+        d.textContent = q;
+        d.onclick = () => { document.getElementById('question').value = q; send(); };
+        cont.appendChild(d);
+      });
+    }
+
+    function addMsg(txt, role, src = []) {
+      const cont = document.getElementById('chat-messages');
+      const d = document.createElement('div');
+      d.className = `msg ${role}`;
+      d.innerHTML = txt;
+      if(src.length) {
+        const s = document.createElement('div');
+        s.className = 'sources';
+        s.innerHTML = '<span style="color:#94a3b8; margin-right:4px;">Fontes:</span>';
+        // FILTRAGEM ULTRA-ROBUSTA
+        // FILTRAGEM ULTRA-ESTRITA:
+        const matches = [...txt.matchAll(/(?:p\u00E1g\.?|p\.|p\u00E1gina|\()(?:\s*)(\d+)/gi)];
+        const mentions = [...new Set(matches.map(m => m[1]))];
+        
+        const citedSources = src.filter(x => mentions.includes(x.page.toString()));
+        const finalSources = citedSources.length > 0 ? citedSources : src.slice(0, 1);
+
+        finalSources.forEach((x, idx) => {
+          const l = document.createElement('span');
+          l.className = 'page-link';
+          const label = (x.doc_short || x.doc_key || 'DOC').toUpperCase();
+          l.textContent = `[${label}, p.${x.page}]`;
+          const key = x.doc_key || 'raf';
+          
+          l.onclick = () => {
+             l.classList.add('flash-active');
+             setTimeout(() => l.classList.remove('flash-active'), 2000);
+             
+             tabManager.activateTab(key);
+             const iframe = document.getElementById(`pdf-${key}`);
+             if(iframe) {
+                 // Flush Seguro do Iframe
+                 const target = `${API_URL}/pdf/${key}?v=${Date.now()}_${x.page}#page=${x.page}`;
+                 iframe.src = "about:blank";
+                 setTimeout(() => {
+                    const nv = document.createElement('iframe');
+                    nv.id = iframe.id; nv.style.cssText = iframe.style.cssText;
+                    nv.src = target;
+                    iframe.parentNode.replaceChild(nv, iframe);
+                 }, 100);
+             }
+          };
+          s.appendChild(l);
+        });
+d.appendChild(s);
+      }
+      cont.appendChild(d); cont.scrollTop = cont.scrollHeight;
+      return d;
+    }
+
+    window.toggleSidebar = function() {
+      // Sidebar sempre visível
+    }
+
+    window.toggleWide = function() {
+      const panel = document.getElementById('chat-panel');
+      panel.classList.remove('collapsed');
+      panel.classList.toggle('wide');
+    }
+
+    // Memória removida - conversas não são persistidas
+    function loadHistory() {
+      // Sem memória - sempre inicia limpo
+    }
+
+    function clearChat() {
+      document.getElementById('chat-messages').innerHTML = '<div class="msg bot">Pronto para nova pesquisa.</div>';
+      toggleDrawer('sug-drawer');
+    }
+
+    async function loadConfig() {
+      try {
+        const res = await fetch(API_URL + '/config');
+        const cfg = await res.json();
+        
+        // Render Embedding Options
+        const embCont = document.getElementById('emb-options');
+        let embHtml = '';
+        for(const [pid, pInfo] of Object.entries(cfg.embedding_providers)) {
+           const isExhausted = (pid === 'gemini' && !cfg.gemini_available);
+           embHtml += `<div class="chip ${isExhausted?'exhausted':''}" id="chip-emb-${pid}" onclick="selectEmb('${pid}')">${pInfo.name}</div>`;
+        }
+        embCont.innerHTML = embHtml;
+
+        // Render LLM Options
+        const llmCont = document.getElementById('llm-options');
+        let llmHtml = '';
+        const llms = [
+          { id: 'groq', name: 'Llama 3.3 (Groq)', avail: cfg.groq_available },
+          { id: 'gemini', name: 'Gemini Flash', avail: cfg.gemini_available },
+          { id: 'jina', name: 'DeepSearch (Jina)', avail: true },
+          { id: 'bigpickle', name: 'Big Pickle (Free)', avail: cfg.bigpickle_available },
+          { id: 'raw_chunks', name: 'Só Chunks', avail: true }
+        ];
+        llms.forEach(l => {
+          llmHtml += `<div class="chip ${!l.avail?'exhausted':''}" id="chip-llm-${l.id}" onclick="selectLLM('${l.id}')">${l.name}</div>`;
+        });
+        llmCont.innerHTML = llmHtml;
+        
+        // Restore/Apply
+        selectLLM(localStorage.getItem('vhf_llm_provider') || 'groq', true);
+        selectEmb(localStorage.getItem('vhf_embedding_provider') || 'gemini', true);
+
+      } catch (e) {
+        console.error("Erro ao carregar configurações", e);
+      }
+    }
+
+    window.selectLLM = function(id, skipSave=false) {
+      document.querySelectorAll('#llm-options .chip').forEach(c => c.classList.remove('active'));
+      const chip = document.getElementById('chip-llm-' + id);
+      if(chip) {
+        chip.classList.add('active');
+        window.selectedLLM = id;
+        document.getElementById('llm-drawer').querySelector('.drawer-header').classList.add('has-selection');
+        if(!skipSave) { localStorage.setItem('vhf_llm_provider', id); }
+      }
+    }
+
+    window.selectEmb = function(id, skipSave=false) {
+      document.querySelectorAll('#emb-options .chip').forEach(c => c.classList.remove('active'));
+      const chip = document.getElementById('chip-emb-' + id);
+      if(chip) {
+        chip.classList.add('active');
+        window.selectedEmb = id;
+        document.getElementById('emb-drawer').querySelector('.drawer-header').classList.add('has-selection');
+        if(!skipSave) { localStorage.setItem('vhf_embedding_provider', id); }
+      }
+    }
+
+
+    async function send() {
+      const qInput = document.getElementById('question');
+      const q = qInput.value.trim();
+      if(!q) return;
+      qInput.value = '';
+      
+      addMsg(q, 'user');
+      if(document.getElementById('sug-drawer').classList.contains('open')) toggleDrawer('sug-drawer');
+      if(document.getElementById('conf-drawer').classList.contains('open')) toggleDrawer('conf-drawer');
+
+      const botMsg = addMsg('<span style="opacity:0.5">Cruzando fontes de dados...</span>', 'bot');
+
+      const llm = window.selectedLLM || 'groq';
+      const emb = window.selectedEmb || 'gemini';
+
+      const user_keys = {
+        groq:   localStorage.getItem('vhf_user_groq_key') || '',
+        gemini: localStorage.getItem('vhf_user_gemini_key') || '',
+        jina:   localStorage.getItem('vhf_user_jina_key') || ''
+      };
+
+      try {
+        const res = await fetch(`${API_URL}/ask_cross`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ 
+            question: q, 
+            llm_provider: llm, 
+            embedding_provider: emb,
+            user_keys: user_keys
+          })
+        });
+        
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        
+        // Remove placeholder e usa addMsg (com filtragem e nav corrigidos)
+        botMsg.remove();
+        const realMsg = addMsg(data.answer.replace(/\\n/g, '<br>'), 'bot', data.sources);
+        realMsg.classList.add('flash-active');
+        setTimeout(() => realMsg.classList.remove('flash-active'), 3000);
+
+        if(data.sources && data.sources.length) {
+          const first = data.sources[0];
+          tabManager.activateTab(first.doc_key || 'raf');
+        }
+      } catch(e) {
+        botMsg.innerHTML = "Falha na busca integrada. Verifique o servidor.";
+      }
+    }
+
+    loadHistory();
+    console.log('[RELATORIOS] After loadHistory, chat-panel:', document.getElementById('chat-panel'));
+    // FORÇAR sidebar sempre visível - múltiplas defesas
+    (function() {
+        const panel = document.getElementById('chat-panel');
+        if(panel) {
+            panel.classList.remove('collapsed');
+            panel.classList.remove('wide');
+            panel.style.display = 'flex';
+            panel.style.width = '380px';
+        }
+    })();
+    setTimeout(function() {
+        const panel = document.getElementById('chat-panel');
+        if(panel) {
+            panel.classList.remove('collapsed');
+            panel.classList.remove('wide');
+        }
+    }, 100);
+    setTimeout(function() {
+        const panel = document.getElementById('chat-panel');
+        if(panel) {
+            panel.classList.remove('collapsed');
+            panel.classList.remove('wide');
+        }
+    }, 500);
+    loadAppConfig().then(() => renderSug());
+    
+    // Ativar aba inicial vinda da URL (?tab=brain)
+    const wantedTab = params.get('tab') || 'raf';
+    if (tabManager.tabs[wantedTab]) {
+      tabManager.activateTab(wantedTab, false);
+      if (wantedTab === 'brain') {
+        triggerBrainLoad();
+      }
+    }
+    
+    function triggerBrainLoad() {
+      console.log('[triggerBrainLoad] called');
+      const providerChip = document.querySelector('.brain-provider-chip.active');
+      const docChip = document.querySelector('.brain-doc-chip.active');
+      const modeChip = document.querySelector('.brain-mode-chip.active');
+      if(!providerChip) {
+        const first = document.querySelector('.brain-provider-chip');
+        if(first) first.classList.add('active');
+      }
+      if(!docChip) {
+        const first = document.querySelector('.brain-doc-chip');
+        if(first) first.classList.add('active');
+      }
+      if(!modeChip) {
+        const first = document.querySelector('.brain-mode-chip');
+        if(first) first.classList.add('active');
+      }
+      console.log('[triggerBrainLoad] calling loadBrain');
+      loadBrain();
+    }
+    
+    const originalActivate = tabManager.activateTab.bind(tabManager);
+    tabManager.activateTab = function(id, updateURL) {
+      originalActivate(id, updateURL);
+      if(id === 'brain' && typeof loadBrain === 'function') {
+        triggerBrainLoad();
+      }
+    };
+    
+    setTimeout(() => {
+      const msgCount = document.getElementById('chat-messages').children.length;
+      if(msgCount <= 1) toggleDrawer('sug-drawer');
+    }, 500);
+
+    document.getElementById('question').addEventListener('keypress', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+    });
+  </script>
+</body>
+</html>

@@ -2,7 +2,7 @@ from google import genai
 import os
 from dotenv import load_dotenv
 
-load_dotenv('refference/.env')
+load_dotenv('.env')
 client = genai.Client(api_key=os.getenv('GOOGLE_API_KEY'))
 
 def test(model, task_type=None):

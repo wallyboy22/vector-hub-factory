@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workspace - Vector Hub Factory</title>
+  <link rel="stylesheet" href="/assets/shared.css">
+  <script src="/assets/config.js"></script>
+  <style>
+    body {
+      display: flex;
+      flex-direction: row;
+      margin: 0; padding: 0;
+      height: 100vh;
+      overflow: hidden;
+      background: #1a1a2e;
+    }
+    
+    .slim-sidebar {
+      width: 52px;
+      min-width: 52px;
+      background: #1a1a2e;
+      border-right: 1px solid #2a2a3e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 0;
+      gap: 4px;
+      z-index: 100;
+    }
+    
+    .slim-sidebar-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 6px;
+      color: #888;
+      cursor: pointer;
+      text-decoration: none;
+      transition: 0.2s;
+      border-radius: 6px;
+      width: 44px;
+    }
+    
+    .slim-sidebar-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
+    .slim-sidebar-item.active { background: rgba(255,255,255,0.12); color: #fff; }
+    
+    .sidebar-icon { font-size: 1.1rem; }
+    .sidebar-label { font-size: 0.45rem; margin-top: 4px; font-weight: 700; text-align: center; letter-spacing: 0.5px; text-transform: uppercase; line-height: 1.1; }
+    
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100%;
+    }
+    
+    .sidebar-group-label {
+      font-size: 0.5rem;
+      color: #555;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin-top: 15px;
+      margin-bottom: 5px;
+      letter-spacing: 1px;
+    }
+    
+    .hidden-nav { display: none !important; }
+    
+    iframe#app-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #fafafa;
+    }
+
+    /* Status Banner */
+    .status-banner {
+      height: 38px;
+      background: #111122;
+      border-bottom: 1px solid #2a2a3e;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      justify-content: space-between;
+      color: #94a3b8;
+      font-size: 0.75rem;
+      z-index: 110;
+    }
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .status-badge.architect { border-color: #3b82f6; color: #3b82f6; background: rgba(59,130,246,0.1); }
+    .status-badge.local { border-color: #10b981; color: #10b981; background: rgba(16,185,129,0.1); }
+    
+    .btn-key-config {
+       background: #1e293b; color: #fff; border: 1px solid #334155;
+       padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 0.7rem;
+       transition: 0.2s;
+    }
+    .btn-key-config:hover { background: #334155; }
+
+    /* Key Modal */
+    #key-modal {
+       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+       background: rgba(0,0,0,0.8); backdrop-filter: blur(4px);
+       z-index: 500; display: none; align-items: center; justify-content: center;
+    }
+    .modal-content {
+       background: #1a1a2e; border: 1px solid #2a2a3e; width: 400px;
+       border-radius: 12px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+    .modal-header { padding: 16px; border-bottom: 1px solid #2a2a3e; display: flex; justify-content: space-between; align-items: center; }
+    .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+    .modal-footer { padding: 12px 20px; border-top: 1px solid #2a2a3e; display: flex; justify-content: flex-end; }
+  </style>
+</head>
+<body>
+  <div id="key-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span style="font-weight: 700; color:#fff">🔑 Configurações de Arquiteto</span>
+        <button onclick="closeModal()" style="background:none; border:none; color:#888; cursor:pointer; font-size:1.2rem">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.7rem; color:#94a3b8; margin:0">Insira suas chaves para desbloquear as ferramentas de criação (Fábrica, Embeddings e Upload).</p>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+           <div class="config-group">
+             <label style="font-size:0.6rem; color:#555; text-transform:uppercase; font-weight:800">Groq API Key</label>
+             <input type="password" id="user-groq-key" class="input-flat" placeholder="gsk_..." style="background:#0f172a; border-color:#2a2a3e; color:#fff">
+           </div>
+           <div class="config-group">
+             <label style="font-size:0.6rem; color:#555; text-transform:uppercase; font-weight:800">Gemini API Key</label>
+             <input type="password" id="user-gemini-key" class="input-flat" placeholder="Pressione para colar..." style="background:#0f172a; border-color:#2a2a3e; color:#fff">
+           </div>
+           <div class="config-group">
+             <label style="font-size:0.6rem; color:#555; text-transform:uppercase; font-weight:800">Jina API Key</label>
+             <input type="password" id="user-jina-key" class="input-flat" placeholder="jina_..." style="background:#0f172a; border-color:#2a2a3e; color:#fff">
+           </div>
+        </div>
+        <p style="font-size:0.6rem; color:#64748b; font-style:italic">As chaves são armazenadas localmente no seu navegador.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-send" onclick="saveKeys()" style="padding: 8px 20px; font-size: 0.75rem;">Ativar Modo Arquiteto</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="slim-sidebar">
+    <div class="slim-sidebar-item" id="nav-hub" onclick="loadApp(this, '/ui/apps/vitrine/home.html#intro', '/')" title="Hub - Início">
+      <span class="sidebar-icon">🏠</span>
+      <span class="sidebar-label">HUB</span>
+    </div>
+    
+    <!-- ELEMENTOS DA FÁBRICA: Só aparecem quando o Hub ou algum deles está ativo -->
+    <div id="factory-group" class="dev-only-sidebar hidden-nav" style="flex-direction:column; gap:4px; border-bottom:1px solid #2a2a3e; padding-bottom:8px; margin-bottom:8px;">
+      <div class="slim-sidebar-item" id="nav-pdfs" onclick="loadApp(this, '/ui/apps/vitrine/home.html#pdfs', '/pdfs')" title="Gerenciar PDFs">
+        <span class="sidebar-icon">📄</span>
+        <span class="sidebar-label">DATA</span>
+      </div>
+      <div class="slim-sidebar-item" id="nav-embeddings" onclick="loadApp(this, '/ui/apps/vitrine/home.html#embeddings', '/embeddings')" title="Gerenciar Vetores">
+        <span class="sidebar-icon">🧮</span>
+        <span class="sidebar-label">VEC</span>
+      </div>
+      <div class="slim-sidebar-item" id="nav-apps-admin" onclick="loadApp(this, '/ui/apps/vitrine/home.html#apps', '/apps')" title="Fábrica de Apps">
+        <span class="sidebar-icon">🏭</span>
+        <span class="sidebar-label">FACTORY</span>
+      </div>
+      <div class="slim-sidebar-item" id="nav-monitor" onclick="loadApp(this, '/ui/apps/vitrine/home.html#monitor', '/monitoring')" title="Monitor de APIs">
+        <span class="sidebar-icon">📊</span>
+        <span class="sidebar-label">MONITOR</span>
+      </div>
+    </div>
+
+    <div class="sidebar-group-label" style="color:#888">Apps</div>
+
+    <div class="slim-sidebar-item" id="nav-raf" onclick="loadApp(this, '/ui/apps/raf/index.html', '/raf')" title="Relatório Anual do Fogo 2024">
+      <span class="sidebar-icon">🔥</span>
+      <span class="sidebar-label">RAF</span>
+    </div>
+    <div class="slim-sidebar-item" id="nav-rad" onclick="loadApp(this, '/ui/apps/rad/index.html', '/rad')" title="Relatório Anual do Desmatamento 2024">
+      <span class="sidebar-icon">🌳</span>
+      <span class="sidebar-label">RAD</span>
+    </div>
+    <div class="slim-sidebar-item" id="nav-relatorios_anuais" onclick="loadApp(this, '/ui/apps/relatorios_anuais/index.html', '/relatorios_anuais')" title="Relatórios Anuais (Cruzamento RAF/RAD)">
+      <span class="sidebar-icon">📚</span>
+      <span class="sidebar-label">ANUAIS</span>
+    </div>
+    
+    <div style="flex:1"></div>
+  </div>
+
+  <div class="main-content">
+    <div class="status-banner">
+      <div style="display:flex; align-items:center; gap:12px;">
+         <span style="font-weight: 800; color:#fff; font-size:0.6rem; letter-spacing:1px">VHF HUB v4.0</span>
+         <div id="status-tag" class="status-badge">Acesso: Convidado</div>
+         <button id="dev-mode-toggle" class="btn-key-config" style="display:none;" onclick="toggleDevMode()">🔄 Alternar Modo</button>
+      </div>
+      <div>
+         <button class="btn-key-config" onclick="openModal()">🔑 Configurar Chaves Pessoais</button>
+      </div>
+    </div>
+    <iframe id="app-frame" src="about:blank"></iframe>
+  </div>
+
+  <script>
+    let IS_DEV_SERVER = false;
+    let IS_ARCHITECT = false;
+    
+    async function checkDevMode() {
+      try {
+        const res = await fetch('/config');
+        const cfg = await res.json();
+        IS_DEV_SERVER = cfg.dev_mode;
+        
+        loadStoredKeys();
+        updateStatusUI();
+      } catch(e) {}
+    }
+
+    function loadStoredKeys() {
+        document.getElementById('user-groq-key').value = localStorage.getItem('vhf_user_groq_key') || '';
+        document.getElementById('user-gemini-key').value = localStorage.getItem('vhf_user_gemini_key') || '';
+        document.getElementById('user-jina-key').value = localStorage.getItem('vhf_user_jina_key') || '';
+        
+        const g = document.getElementById('user-groq-key').value;
+        const ga = document.getElementById('user-gemini-key').value;
+        const ji = document.getElementById('user-jina-key').value;
+        
+        IS_ARCHITECT = (g.length > 5 || ga.length > 5 || ji.length > 5);
+    }
+
+    function updateStatusUI() {
+        const tag = document.getElementById('status-tag');
+        const modeToggle = document.getElementById('dev-mode-toggle');
+        if (IS_DEV_SERVER) {
+            tag.className = 'status-badge local';
+            tag.innerHTML = '✨ Modo Desenvolvedor (Local)';
+            if (modeToggle) modeToggle.style.display = 'inline-block';
+        } else if (IS_ARCHITECT) {
+            tag.className = 'status-badge architect';
+            tag.innerHTML = '🚀 Modo Arquiteto (Cloud)';
+            if (modeToggle) modeToggle.style.display = 'inline-block';
+        } else {
+            tag.className = 'status-badge';
+            tag.innerHTML = '👤 Modo: Convidado';
+            if (modeToggle) modeToggle.style.display = 'none';
+        }
+        updateSidebarVisibility();
+    }
+    
+    async function toggleDevMode() {
+        const newMode = !IS_DEV_SERVER;
+        try {
+            const res = await fetch('/dev-mode', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({enabled: newMode})
+            });
+            const data = await res.json();
+            if (data.ok) {
+                IS_DEV_SERVER = newMode;
+                updateStatusUI();
+                alert('Modo Desenvolvedor: ' + (newMode ? 'ATIVADO' : 'DESATIVADO'));
+                location.reload();
+            } else {
+                alert('Erro ao alternar modo.');
+            }
+        } catch(e) {
+            alert('Erro de conexão.');
+        }
+    }
+
+    function openModal() { document.getElementById('key-modal').style.display = 'flex'; }
+    function closeModal() { document.getElementById('key-modal').style.display = 'none'; }
+    
+    function saveKeys() {
+        const groqKey = document.getElementById('user-groq-key').value;
+        const geminiKey = document.getElementById('user-gemini-key').value;
+        const jinaKey = document.getElementById('user-jina-key').value;
+        
+        localStorage.setItem('vhf_user_groq_key', groqKey);
+        localStorage.setItem('vhf_user_gemini_key', geminiKey);
+        localStorage.setItem('vhf_user_jina_key', jinaKey);
+        
+        if (IS_DEV_SERVER && groqKey.length > 10) {
+            fetch('/dev-mode/save-key', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({key_name: 'GROQ_API_KEY', key_value: groqKey})
+            });
+        }
+        if (IS_DEV_SERVER && geminiKey.length > 10) {
+            fetch('/dev-mode/save-key', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({key_name: 'GOOGLE_API_KEY', key_value: geminiKey})
+            });
+        }
+        if (IS_DEV_SERVER && jinaKey.length > 10) {
+            fetch('/dev-mode/save-key', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({key_name: 'JINA_API_KEY', key_value: jinaKey})
+            });
+        }
+        
+        loadStoredKeys();
+        updateStatusUI();
+        closeModal();
+        
+        if(document.getElementById('app-frame').src.includes('home.html')) {
+            document.getElementById('app-frame').contentWindow.location.reload();
+        }
+    }
+
+    function updateSidebarVisibility(activePath = window.location.pathname) {
+      const isHubSection = ['/', '/pdfs', '/embeddings', '/apps', '/monitoring'].includes(activePath);
+      const group = document.getElementById('factory-group');
+      const hasAccess = IS_DEV_SERVER || IS_ARCHITECT;
+      
+      if (hasAccess && isHubSection) {
+        group.classList.remove('hidden-nav');
+        group.style.display = 'flex';
+      } else {
+        group.classList.add('hidden-nav');
+        group.style.display = 'none';
+      }
+    }
+
+    function loadApp(element, url, path) {
+      document.querySelectorAll('.slim-sidebar-item').forEach(el => el.classList.remove('active'));
+      if (element) element.classList.add('active');
+      document.getElementById('app-frame').src = url;
+      
+      const cleanPath = path.replace(/\/+$/, '') || '/';
+      updateSidebarVisibility(cleanPath);
+
+      if (path && window.location.pathname !== path) {
+        window.history.pushState({ path }, '', path);
+      }
+    }
+
+    window.addEventListener('load', () => {
+      checkDevMode();
+      const path = window.location.pathname.replace(/\/+$/, '');
+      let targetElement = document.getElementById('nav-hub');
+      const ts = Date.now();
+      if (path === '/pdfs') {
+        targetElement = document.getElementById('nav-pdfs');
+        targetUrl = `/ui/apps/vitrine/home.html?v=${ts}#pdfs`;
+      } else if (path === '/embeddings') {
+        targetElement = document.getElementById('nav-embeddings');
+        targetUrl = `/ui/apps/vitrine/home.html?v=${ts}#embeddings`;
+      } else if (path === '/apps') {
+        targetElement = document.getElementById('nav-apps-admin');
+        targetUrl = `/ui/apps/vitrine/home.html?v=${ts}#apps`;
+      } else if (path === '/monitoring') {
+        targetElement = document.getElementById('nav-monitor');
+        targetUrl = `/ui/apps/vitrine/home.html?v=${ts}#monitor`;
+      } else if (path.includes('/raf')) {
+        targetElement = document.getElementById('nav-raf');
+        targetUrl = '/ui/apps/raf/index.html';
+      } else if (path.includes('/rad')) {
+        targetElement = document.getElementById('nav-rad');
+        targetUrl = '/ui/apps/rad/index.html';
+      } else if (path.includes('/relatorios_anuais')) {
+        targetElement = document.getElementById('nav-relatorios_anuais');
+        targetUrl = '/ui/apps/relatorios_anuais/index.html';
+      } else {
+        targetUrl = `/ui/apps/vitrine/home.html?v=${ts}#intro`;
+      }
+
+      loadApp(targetElement, targetUrl, path || '/');
+    });
+
+    window.addEventListener('popstate', () => {
+      window.location.reload(); 
+    });
+  </script>
+</body>
+</html>

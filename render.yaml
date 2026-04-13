@@ -5,9 +5,16 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn src.api:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: GOOGLE_API_KEY_0
+      - key: GOOGLE_API_KEY
         sync: false
-      - key: GOOGLE_API_KEY_1
+      - key: GROQ_API_KEY
         sync: false
-      - key: GOOGLE_API_KEY_2
+      - key: JINA_API_KEY
+        sync: false
+      - key: HUGGINFACE_API_KEY
+        sync: false
+      - key: OPENCODE_ZEN_API_KEY
+        sync: false
+      - key: DEV_MODE
+        value: "false"
         sync: false

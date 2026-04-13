@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RAF — Vector Hub Factory</title>
+  <link rel="stylesheet" href="/assets/shared.css?v=2.2">
+  <script src="/assets/config.js?v=2.2"></script>
+  <script src="/assets/tab-manager.js?v=2.2"></script>
+  <style>
+    :root { --primary-color: #E8503A; }
+    
+    /* Config Drawer specific styles */
+    .config-drawer {
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+      flex-shrink: 0;
+      transition: max-height 0.3s ease;
+      max-height: 40px; /* header only */
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .config-drawer.open {
+      max-height: 400px;
+    }
+    .config-header {
+      padding: 10px 16px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #64748b;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f1f5f9;
+      user-select: none;
+    }
+    .config-header:hover { background: #e2e8f0; color: #334155; }
+    .config-header .icon { transition: transform 0.3s; }
+    .config-drawer.open .config-header .icon { transform: rotate(180deg); }
+    
+    .config-content {
+      padding: 16px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+      color: #334155;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .config-group { display: flex; flex-direction: column; gap: 8px; }
+    .config-group label { font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+    .radio-option {
+      display: flex; align-items: center; gap: 8px; cursor: pointer;
+      padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0;
+      background: #fff; transition: 0.2s;
+    }
+    .radio-option:hover { border-color: var(--primary-color); }
+    .radio-option input[type="radio"] { margin: 0; accent-color: var(--primary-color); }
+    .radio-option.disabled { opacity: 0.5; pointer-events: none; background: #f8fafc; }
+    
+    .badge-info { font-size: 0.7rem; color: #94a3b8; margin-top: 4px; line-height: 1.4; display: block; }
+  </style>
+</head>
+<body class="app-shell">
+  <header>
+    <div class="header-left">
+      <span style="font-size: 1.4rem;">🔥</span>
+      <h1>rads <span style="font-weight:400; color:#94a3b8">(RADS)</span></h1>
+    </div>
+    <div class="header-right">
+       <a href="/pdf/raf" class="btn-download">⬇️ PDF Completo</a>
+    </div>
+  </header>
+
+  <div id="main-workspace">
+    <div id="chat-panel">
+      <div id="chat-messages">
+        <div class="msg bot">Olá! Como posso ajudar com sua pesquisa no rads 2024?</div>
+      </div>
+      
+      <div id="input-area">
+        <div class="input-row">
+          <textarea id="question" rows="1" placeholder="Sua dúvida sobre o fogo..."></textarea>
+          <button class="btn-send" onclick="send()">➔</button>
+        </div>
+      </div>
+
+      <div class="chat-footer">
+        <span>⚠️ IA Experimental: Verifique fontes no PDF.</span>
+        <button class="btn-clear" onclick="clearChat()">🗑️ Limpar</button>
+      </div>
+
+      <div class="suggestions-drawer" id="sug-drawer">
+        <div class="drawer-header" onclick="toggleDrawer('sug-drawer')">
+          <span>Sugestões de Perguntas</span>
+          <div class="icon">▾</div>
+        </div>
+        <div class="drawer-content" id="suggestions"></div>
+      </div>
+      
+      <!-- Gaveta de Configurações -->
+      <div class="config-drawer" id="conf-drawer">
+        <div class="config-header" onclick="toggleDrawer('conf-drawer')">
+          <span>⚙️ Configurações do Engine RAG</span>
+          <div class="icon">▾</div>
+        </div>
+        <div class="config-content">
+          
+          <div class="config-group">
+            <label>💬 Modelo de Resposta (LLM)</label>
+            <label class="radio-option" id="lbl-llm-groq">
+              <input type="radio" name="llm_provider" value="groq" onchange="saveConfig()"> Llama 3.3 (Groq) — Rápido
+            </label>
+            <label class="radio-option" id="lbl-llm-gemini">
+              <input type="radio" name="llm_provider" value="gemini" onchange="saveConfig()"> Gemini Flash (Google) — Fallback
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="llm_provider" value="raw_chunks" onchange="saveConfig()"> Só Chunks Brutos (Sem IA)
+            </label>
+            <span class="badge-info">A IA selecionada interpretará os chunks retornados pela busca.</span>
+          </div>
+          
+          <div class="config-group">
+            <label>🧠 Engine de Busca (Embedding)</label>
+            <label class="radio-option">
+              <input type="radio" name="embedding_provider" value="gemini" onchange="saveConfig()" checked> Google Gemini 768d
+            </label>
+            <label class="radio-option disabled" id="lbl-emb-bge">
+              <input type="radio" name="embedding_provider" value="bge-m3" onchange="saveConfig()"> BGE-M3 (Indisponível localmente)
+            </label>
+            <span class="badge-info">Modelos adicionais podem ser gerados pela Fábrica no Hub.</span>
+          </div>
+          
+        </div>
+      </div>
+
+    </div>
+    <div id="canvas-container"></div>
+  </div>
+
+  <script>
+    const API_URL = window.VHF_CONFIG?.API_URL || '';
+    
+    // UI Setup
+    const tabManager = new TabManager('canvas-container');
+    tabManager.addTab('pdf', 'RAF PDF', false, 
+      `<iframe id="pdf-viewer" style="width:100%; height:100%; border:none;" src="${API_URL}/pdf/raf#toolbar=0"></iframe>`, 
+      '📄'
+    );
+    
+    function toggleDrawer(id) {
+      document.getElementById(id).classList.toggle('open');
+      const chatMsgs = document.getElementById('chat-messages');
+      setTimeout(() => { if(chatMsgs) chatMsgs.scrollTop = chatMsgs.scrollHeight; }, 300);
+    }
+
+    const questions = ["Área total queimada no Brasil?", "Pantanal em 2024?", "Impacto na Amazônia?", "Metodologia?"];
+
+    function renderSug() {
+      const cont = document.getElementById('suggestions');
+      questions.forEach(q => {
+        const d = document.createElement('div');
+        d.className = 'chip'; d.textContent = q;
+        d.onclick = () => { document.getElementById('question').value = q; send(); };
+        cont.appendChild(d);
+      });
+    }
+
+    function addMsg(txt, role, src = []) {
+      const cont = document.getElementById('chat-messages');
+      const d = document.createElement('div');
+      d.className = `msg ${role}`; d.innerHTML = txt;
+      if(src.length) {
+        const s = document.createElement('div');
+        s.className = 'sources'; s.innerHTML = '<span style="color:#94a3b8; margin-right:4px;">Fontes:</span>';
+        [...new Set(src.map(x => x.page))].forEach(p => {
+          const l = document.createElement('span'); l.className = 'page-link'; l.textContent = `pág ${p}`;
+          l.onclick = () => { 
+            tabManager.activateTab('pdf'); 
+            const viewer = document.getElementById('pdf-viewer');
+            if (viewer) {
+              // Highlight effect on the link
+              l.classList.add('flash-active');
+              setTimeout(() => l.classList.remove('flash-active'), 2000);
+              // Jump to page
+              viewer.src = `${API_URL}/pdf/raf?toolbar=0&t=${Date.now()}#page=${p}`; 
+            }
+          };
+          s.appendChild(l);
+        });
+        d.appendChild(s);
+      }
+      cont.appendChild(d); cont.scrollTop = cont.scrollHeight;
+      return d;
+    }
+
+    function clearChat() { document.getElementById('chat-messages').innerHTML = '<div class="msg bot">Chat reiniciado. Como posso ajudar?</div>'; }
+
+    // ── Lógica de Configurações (localStorage) ──
+    async function loadConfig() {
+      try {
+        const res = await fetch(API_URL + '/config');
+        const cfg = await res.json();
+        
+        // Disable Groq if no key
+        if(!cfg.groq_available) {
+           document.getElementById('lbl-llm-groq').classList.add('disabled');
+           if(localStorage.getItem('vhf_llm_provider') === 'groq') localStorage.setItem('vhf_llm_provider', 'gemini');
+        }
+        
+        // Restore from localStorage
+        const llm = localStorage.getItem('vhf_llm_provider') || (cfg.groq_available ? 'groq' : 'gemini');
+        const emb = localStorage.getItem('vhf_embedding_provider') || 'gemini';
+        
+        const llmRadio = document.querySelector(`input[name="llm_provider"][value="${llm}"]`);
+        if(llmRadio) llmRadio.checked = true;
+        
+        const embRadio = document.querySelector(`input[name="embedding_provider"][value="${emb}"]`);
+        if(embRadio) embRadio.checked = true;
+
+      } catch (e) {
+        console.error("Erro ao carregar configurações", e);
+      }
+    }
+
+    function saveConfig() {
+      const llm = document.querySelector('input[name="llm_provider"]:checked').value;
+      const emb = document.querySelector('input[name="embedding_provider"]:checked').value;
+      localStorage.setItem('vhf_llm_provider', llm);
+      localStorage.setItem('vhf_embedding_provider', emb);
+    }
+
+    // ── Lógica do Chatbot RAG Real ──
+    async function send() {
+      const qInput = document.getElementById('question');
+      const q = qInput.value.trim();
+      if(!q) return;
+      
+      qInput.value = '';
+      addMsg(q, 'user');
+      
+      if(document.getElementById('sug-drawer').classList.contains('open')) toggleDrawer('sug-drawer');
+      if(document.getElementById('conf-drawer').classList.contains('open')) toggleDrawer('conf-drawer');
+
+      const botMsg = addMsg('<span style="opacity:0.5">Pensando...</span>', 'bot');
+      
+      const llm = document.querySelector('input[name="llm_provider"]:checked')?.value || 'groq';
+      const emb = document.querySelector('input[name="embedding_provider"]:checked')?.value || 'gemini';
+
+      try {
+        const res = await fetch(API_URL + '/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            question: q,
+            report: 'raf',
+            llm_provider: llm,
+            embedding_provider: emb
+          })
+        });
+        
+        if (!res.ok) throw new Error(await res.text());
+        
+        const data = await res.json();
+        
+        // Substituir placeholder pela resposta real
+        botMsg.innerHTML = data.answer.replace(/\\n/g, '<br>');
+        botMsg.classList.add('flash-active'); // Destaque inicial na resposta
+        setTimeout(() => botMsg.classList.remove('flash-active'), 3000);
+        
+        // Renderizar fontes
+        if (data.sources && data.sources.length) {
+          const s = document.createElement('div');
+          s.className = 'sources'; s.innerHTML = '<span style="color:#94a3b8; margin-right:4px;">Fontes:</span>';
+          [...new Set(data.sources.map(x => x.page))].forEach(p => {
+             const l = document.createElement('span'); l.className = 'page-link'; l.textContent = `pág ${p}`;
+             l.onclick = () => { tabManager.activateTab('pdf'); document.getElementById('pdf-viewer').src = `${API_URL}/pdf/raf#page=${p}&toolbar=0`; };
+             s.appendChild(l);
+          });
+          botMsg.appendChild(s);
+        }
+        
+      } catch (err) {
+        botMsg.innerHTML = `⚠️ Erro de conexão com o servidor. Tente novamente mais tarde.`;
+        console.error(err);
+      }
+      
+      const cont = document.getElementById('chat-messages');
+      cont.scrollTop = cont.scrollHeight;
+    }
+
+    // Init
+    renderSug();
+    loadConfig();
+    
+    // Envio pelo Enter
+    document.getElementById('question').addEventListener('keypress', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+    });
+  </script>
+</body>
+</html>
