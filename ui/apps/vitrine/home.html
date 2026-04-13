@@ -195,9 +195,9 @@
     <!-- Tabs Nav -->
     <div class="tabs-nav">
       <button class="tab-btn active" id="tab-btn-intro" onclick="showTab('intro')">🎓 Descubra</button>
-      <button class="tab-btn" id="tab-btn-pdfs" onclick="showTab('pdfs')">📄 PDFs (Upload)</button>
-      <button class="tab-btn" id="tab-btn-embeddings" onclick="showTab('embeddings')">🧮 Embeddings</button>
       <button class="tab-btn" id="tab-btn-apps" onclick="showTab('apps')">🤖 Aplicativos</button>
+      <button class="tab-btn dev-only" id="tab-btn-pdfs" onclick="showTab('pdfs')">📄 PDFs (Upload)</button>
+      <button class="tab-btn dev-only" id="tab-btn-embeddings" onclick="showTab('embeddings')">🧮 Embeddings</button>
       <button class="tab-btn" id="tab-btn-monitor" onclick="showTab('monitor')">📊 Monitor API</button>
     </div>
 
@@ -476,48 +476,48 @@
           document.getElementById('pdfs-tbody').innerHTML = pdfHtml;
           document.getElementById('embeddings-container').innerHTML = embedHtml;
           document.getElementById('factory-pdf-selection').innerHTML = factoryPdfHtml;
-          
-          // API Keys
-          let keysHtml = '';
-          keys.forEach(k => {
-             const statusClass = k.status === 'DISPONÍVEL' ? 'status-ok' : (k.status === 'SEM CHAVE' ? 'status-warn' : 'status-err');
-             const statusLabel = k.status === 'DISPONÍVEL' ? '✓ Disponível' : (k.status === 'SEM CHAVE' ? '⚠ Precisa Chave' : '✕ ' + k.status);
-             keysHtml += `
-                <tr>
-                  <td><strong>${k.provider.toUpperCase()}</strong></td>
-                  <td>${k.key_index !== undefined ? '#' + k.key_index : '-'}</td>
-                  <td>${k.has_key ? '✓ Sim' : '✗ Não'}</td>
-                  <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
-                  <td>${k.remaining > 0 ? k.remaining + ' seg' : '-'}</td>
-                </tr>
-              `;
-           });
-           document.getElementById('keys-tbody').innerHTML = keysHtml;
-
-          // Usage
-          const uRes = await fetch('/usage');
-          const usageData = await uRes.json();
-          let usageHtml = '';
-          const limits = { 'groq': 50000, 'gemini': 500000, 'jina': 1000000 };
-          
-          Object.entries(usageData).forEach(([modelKey, tokens]) => {
-             const provider = modelKey.split(':')[0];
-             const limit = limits[provider] || 100000;
-             const pct = Math.min(100, (tokens / limit) * 100);
-             usageHtml += `
-               <div style="margin-bottom:12px;">
-                 <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-bottom:4px;">
-                   <span><strong>${modelKey}</strong></span>
-                   <span>${tokens.toLocaleString()} / ${limit.toLocaleString()} tkn</span>
-                 </div>
-                 <div style="height:8px; background:#e2e8f0; border-radius:4px; overflow:hidden;">
-                   <div style="width:${pct}%; height:100%; background:${pct > 80 ? '#ef4444' : 'var(--accent)'}; transition:0.3s"></div>
-                 </div>
-               </div>
-             `;
-          });
-          document.getElementById('usage-container').innerHTML = usageHtml || '<p style="font-size:0.75rem; color:#64748b">Nenhum uso registrado hoje.</p>';
         }
+        
+        // API Keys - Sempre visível (Monitor)
+        let keysHtml = '';
+        keys.forEach(k => {
+           const statusClass = k.status === 'DISPONÍVEL' ? 'status-ok' : (k.status === 'SEM CHAVE' ? 'status-warn' : 'status-err');
+           const statusLabel = k.status === 'DISPONÍVEL' ? '✓ Disponível' : (k.status === 'SEM CHAVE' ? '⚠ Precisa Chave' : '✕ ' + k.status);
+           keysHtml += `
+              <tr>
+                <td><strong>${k.provider.toUpperCase()}</strong></td>
+                <td>${k.key_index !== undefined ? '#' + k.key_index : '-'}</td>
+                <td>${k.has_key ? '✓ Sim' : '✗ Não'}</td>
+                <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                <td>${k.remaining > 0 ? k.remaining + ' seg' : '-'}</td>
+              </tr>
+            `;
+         });
+         document.getElementById('keys-tbody').innerHTML = keysHtml;
+
+        // Usage - Sempre visível (Monitor)
+        const uRes = await fetch('/usage');
+        const usageData = await uRes.json();
+        let usageHtml = '';
+        const limits = { 'groq': 50000, 'gemini': 500000, 'jina': 1000000 };
+        
+        Object.entries(usageData).forEach(([modelKey, tokens]) => {
+           const provider = modelKey.split(':')[0];
+           const limit = limits[provider] || 100000;
+           const pct = Math.min(100, (tokens / limit) * 100);
+           usageHtml += `
+             <div style="margin-bottom:12px;">
+               <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-bottom:4px;">
+                 <span><strong>${modelKey}</strong></span>
+                 <span>${tokens.toLocaleString()} / ${limit.toLocaleString()} tkn</span>
+               </div>
+               <div style="height:8px; background:#e2e8f0; border-radius:4px; overflow:hidden;">
+                 <div style="width:${pct}%; height:100%; background:${pct > 80 ? '#ef4444' : 'var(--accent)'}; transition:0.3s"></div>
+               </div>
+             </div>
+           `;
+        });
+        document.getElementById('usage-container').innerHTML = usageHtml || '<p style="font-size:0.75rem; color:#64748b">Nenhum uso registrado hoje.</p>';
       } catch (err) {
         console.error("Erro ao carregar Hub Data:", err);
       }
