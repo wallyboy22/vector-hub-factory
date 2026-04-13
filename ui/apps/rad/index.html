@@ -624,8 +624,8 @@
         llmCont.innerHTML = llmHtml;
         
         // Restore/Apply
-        selectLLM(localStorage.getItem('vhf_llm_provider') || 'groq', true);
-        selectEmb(localStorage.getItem('vhf_embedding_provider') || 'gemini', true);
+        selectLLM(localStorage.getItem('vhf_llm_provider') || 'bigpickle', true);
+        selectEmb(localStorage.getItem('vhf_embedding_provider') || 'jina', true);
 
       } catch (e) {
         console.error("Erro ao carregar configurações", e);
@@ -737,7 +737,10 @@
     }, 500);
     
     loadHistory();
-    loadAppConfig().then(() => renderSug());
+    loadAppConfig().then(() => {
+      renderSug();
+      loadConfig();
+    });
     
     // Ativar aba inicial: PDF por padrão, ou ?tab da URL
     const wantedTab = params.get('tab') || 'pdf';
